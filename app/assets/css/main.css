@@ -1,2 +1,9 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
+
+/* Tailwind v4 ne met plus cursor:pointer par défaut sur les éléments cliquables */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="combobox"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}

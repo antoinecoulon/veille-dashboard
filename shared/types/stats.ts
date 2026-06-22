@@ -12,3 +12,5 @@ interface TimelineStat {
   jour: string
   count: number
 }
+
+export type { ThemeStat, SourceStat, TimelineStat }
