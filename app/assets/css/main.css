@@ -1,6 +1,12 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
 
+/* Typographies du design system (servies par @nuxt/fonts) */
+@theme {
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
 /* Tailwind v4 ne met plus cursor:pointer par défaut sur les éléments cliquables */
 button:not(:disabled),
 [role="button"]:not([aria-disabled="true"]),

@@ -1,75 +1,56 @@
-# Nuxt Minimal Starter
+# Veille.dev — Dashboard
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Dashboard de visualisation de la veille technologique. Il consomme l'API Worker Cloudflare
+(`veille-analytics`) et affiche les articles collectés, avec filtres, pagination et (à venir)
+des vues statistiques.
 
-## Setup
+## Architecture
 
-Make sure to install dependencies:
+- **Nuxt 4** (dossier applicatif dans `app/`) + **Nuxt UI v4** (Tailwind v4).
+- **Proxy Nitro (pattern BFF)** : le client n'appelle jamais le Worker en direct. Toutes les
+  requêtes passent par `/api/**` (same-origin) et sont proxifiées vers le Worker via
+  `routeRules` dans [`nuxt.config.ts`](nuxt.config.ts). Conséquence : pas de CORS à gérer, et
+  l'URL du Worker reste côté serveur.
+- **Composable** [`useVeilleApi`](app/composables/useVeilleApi.ts) (`baseURL: '/api'`) — une
+  query réactive déclenche le refetch au changement de filtre/page.
+- **Types partagés** dans [`shared/types/`](shared/types/).
+
+## Design system
+
+- **Layout sidebar** ([`app/layouts/default.vue`](app/layouts/default.vue)) construit avec les
+  composants Dashboard de Nuxt UI (`UDashboardGroup` / `UDashboardSidebar` / `UNavigationMenu`),
+  responsive (slideover sur mobile).
+- **Palette** : primary **emerald**, neutral **slate** (couleurs Tailwind, définies dans
+  [`app/app.config.ts`](app/app.config.ts)). Mode **clair** verrouillé
+  (`colorMode` dans `nuxt.config.ts`). Effet « papier » via les tokens Nuxt UI : contenu en
+  `bg-muted`, cartes en `bg-default`.
+- **Typographies** : **Space Grotesk** (UI/titres) et **IBM Plex Mono** (labels/mono), définies
+  dans [`app/assets/css/main.css`](app/assets/css/main.css) (`@theme`) et servies par
+  `@nuxt/fonts` (cf. clé `fonts` de `nuxt.config.ts`).
+
+## Développement
 
 ```bash
-# npm
-npm install
-
-# pnpm
 pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
+pnpm dev        # http://localhost:3000
 ```
 
-## Development Server
+### Variable d'environnement
 
-Start the development server on `http://localhost:3000`:
+| Variable | Rôle |
+| --- | --- |
+| `NUXT_PUBLIC_WORKER_BASE_URL` | URL de base du Worker. **Lue au build** pour construire la règle de proxy Nitro. À définir en local (`.env`) **et** dans Vercel. |
+
+> Le préfixe `NUXT_PUBLIC_` est conservé pour la compatibilité de la variable existante, mais la
+> valeur n'est **pas** exposée au client : elle vit dans `runtimeConfig` server-only et n'est
+> utilisée que par le proxy.
+
+## Build / déploiement
 
 ```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
+pnpm build      # build de production (preset Nitro auto-détecté par Vercel)
+pnpm preview    # prévisualisation locale
 ```
 
-## Production
-
-Build the application for production:
-
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+Déploiement sur Vercel : connecter le repo, définir `NUXT_PUBLIC_WORKER_BASE_URL`, le reste est
+auto-détecté.

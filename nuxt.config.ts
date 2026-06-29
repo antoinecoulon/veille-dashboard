@@ -8,6 +8,23 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxt/ui'],
   css: ['~/assets/css/main.css'],
+  app: {
+    head: {
+      htmlAttrs: { lang: 'fr' },
+      title: 'Veille.dev — Dashboard'
+    }
+  },
+  fonts: {
+    families: [
+      { name: 'Space Grotesk', provider: 'google' },
+      { name: 'IBM Plex Mono', provider: 'google' }
+    ]
+  },
+  // Design clair (papier) — pas de bascule sombre pour l'instant
+  colorMode: {
+    preference: 'light',
+    fallback: 'light'
+  },
   runtimeConfig: {
     // server-only : non exposé au client
     workerBaseUrl

@@ -132,6 +132,17 @@ L'objectif est d'exposer les données et de les visualiser, avec un pipeline de 
 
 **Concepts :** file-based routing, `<NuxtPage>`, `<NuxtLink>`, layouts (optionnel).
 
+> **App shell + design system en place** (d'après le wireframe Claude Design) :
+> - Layout `app/layouts/default.vue` — **sidebar** via les composants Dashboard de Nuxt UI
+>   (`UDashboardGroup`/`UDashboardSidebar`/`UNavigationMenu`), responsive (slideover mobile),
+>   appliqué via `<NuxtLayout>` dans `app.vue`.
+> - Nav : **Articles** actif ; groupe STATISTIQUES (Thèmes/Sources/Timeline) **désactivé**
+>   jusqu'à B2/B3 (pas de liens 404).
+> - Design system : palette **emerald** (primary) + **slate** (neutral) dans `app.config.ts`,
+>   mode **clair** verrouillé, typos **Space Grotesk** + **IBM Plex Mono** via `@nuxt/fonts`,
+>   effet papier (`bg-muted` contenu / `bg-default` cartes).
+> - Reste de B0 (pages `/distribution`, `/tendances`) à faire avec B2/B3.
+
 ### B1. Vue détail — table paginée + filtres
 
 La plus simple, commence par elle car elle mappe directement `/api/articles`.
@@ -142,7 +153,7 @@ La plus simple, commence par elle car elle mappe directement `/api/articles`.
 - [x]  Pagination : state local (page courante), passer les params à l'API, composant `UPagination`
 - [x]  Filtres : `USelect` liés en `v-model` (thème, source, catégorie, score min.), refetch au changement + bouton réinitialiser
 - [x]  Comprendre comment `useFetch` se re-déclenche quand un param réactif change (query réactive via `computed`)
-- [ ]  Ajouter une option "Nombre d'articles par page" (sélecteur de taille de page, ex. 10/25/50, lié au param `limit`)
+- [x]  Ajouter une option "Nombre d'articles par page" (sélecteur de taille de page, ex. 10/25/50, lié au param `limit`)
 
 **Concepts :** `ref`/`reactive`, `v-model`, `v-for`, rendu conditionnel `v-if`/`v-else`, réactivité du refetch.
 
@@ -150,11 +161,11 @@ La plus simple, commence par elle car elle mappe directement `/api/articles`.
 
 ### B2. Vue distribution — répartition par source et par thème
 
-- [ ]  Installer `vue-chartjs chart.js` (maintenant)
-- [ ]  Créer un composant graphe réutilisable (enregistrer les éléments Chart.js : `ArcElement`, `Tooltip`, `Legend` pour un doughnut)
-- [ ]  Mapper `{ data: [{ theme, count }] }` → format Chart.js (`labels`, `datasets`)
-- [ ]  Deux graphes : un par thème, un par source (Doughnut ou Bar)
-- [ ]  Envelopper dans `<ClientOnly>` (SSR + canvas)
+- [x]  Installer `vue-chartjs chart.js` (maintenant)
+- [x]  Créer un composant graphe réutilisable (enregistrer les éléments Chart.js : `ArcElement`, `Tooltip`, `Legend` pour un doughnut) — deux composants `app/components/charts/Doughnut.vue` + `Bar.vue`, enregistrement centralisé dans `register.ts`
+- [x]  Mapper `{ data: [{ theme, count }] }` → format Chart.js (`labels`, `datasets`)
+- [x]  Deux graphes : Doughnut par thème, Bar (horizontal) par source — page `app/pages/distribution.vue`
+- [x]  Envelopper dans `<ClientOnly>` (SSR + canvas)
 
 **Concepts :** props de composant, `computed` pour transformer les données API en structure Chart.js, `<ClientOnly>`.
 
@@ -198,8 +209,8 @@ La plus simple, commence par elle car elle mappe directement `/api/articles`.
 - [x]  Initialiser un projet Nuxt.js
 - [x]  Connecter au Worker API (composable `useFetch` ou `$fetch`)
 - [ ]  Vue tendances : graphique d'évolution par thème (librairie au choix : Chart.js, ou simple HTML/CSS)
-- [ ]  Vue distribution : répartition par source et par thème
-- [x]  Vue détail : table paginée avec filtres (responsive desktop/mobile) — reste l'option "articles par page"
+- [x]  Vue distribution : répartition par source et par thème
+- [x]  Vue détail : table paginée avec filtres (responsive desktop/mobile)
 - [ ]  Déployer sur Vercel (connecter le repo GitHub, déploiement automatique)
 
 **Résultat** : un dashboard accessible en ligne qui visualise les données de veille.

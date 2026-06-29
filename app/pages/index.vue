@@ -14,8 +14,8 @@ const source = ref(ALL)
 const categorie = ref(ALL)
 const scoreMin = ref(ALL)
 
-// Repartir page 1 dès qu'un filtre change
-watch([theme, source, categorie, scoreMin], () => {
+// Repartir page 1 dès qu'un filtre OU la taille de page change
+watch([theme, source, categorie, scoreMin, limit], () => {
   page.value = 1
 })
 
@@ -56,6 +56,8 @@ const scoreItems = [
   { label: 'Score min.', value: ALL },
   ...[1, 2, 3, 4, 5].map(n => ({ label: `≥ ${n}`, value: String(n) }))
 ]
+// Valeurs numériques : `limit` est un ref(number), pas besoin de sentinelle ici
+const pageSizeItems = [10, 25, 50].map(n => ({ label: `${n} / page`, value: n }))
 
 const hasFilters = computed(() =>
   theme.value !== ALL || source.value !== ALL || categorie.value !== ALL || scoreMin.value !== ALL
@@ -97,9 +99,12 @@ const columns: TableColumn<Article>[] = [
 
 <template>
   <div class="mx-auto w-full max-w-screen-2xl p-4 sm:p-6 space-y-6">
-    <header class="space-y-1">
-      <h1 class="text-2xl font-bold">Articles de veille</h1>
-      <p class="text-sm text-muted">{{ total }} article{{ total > 1 ? 's' : '' }}</p>
+    <header class="flex items-end justify-between gap-4">
+      <div class="space-y-1">
+        <p class="font-mono text-xs text-muted">/articles</p>
+        <h1 class="text-2xl font-bold tracking-tight">Articles</h1>
+      </div>
+      <p class="font-mono text-sm text-muted pb-1">{{ total }} article{{ total > 1 ? 's' : '' }}</p>
     </header>
 
     <!-- Filtres -->
@@ -140,7 +145,7 @@ const columns: TableColumn<Article>[] = [
         :data="articles"
         :columns="columns"
         :loading="isPending"
-        class="hidden lg:block w-full"
+        class="hidden lg:block w-full bg-default rounded-xl border border-default overflow-hidden"
       >
         <template #titre-cell="{ row }">
           <ULink
@@ -214,9 +219,10 @@ const columns: TableColumn<Article>[] = [
         </UCard>
       </div>
 
-      <!-- Pagination -->
-      <div class="flex justify-center pt-2">
+      <!-- Pagination + taille de page -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
         <UPagination v-model:page="page" :total="total" :items-per-page="limit" />
+        <USelect v-model="limit" :items="pageSizeItems" class="w-32" />
       </div>
     </template>
   </div>
