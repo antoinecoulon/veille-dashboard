@@ -39,7 +39,7 @@ pnpm dev        # http://localhost:3000
 
 | Variable | Rôle |
 | --- | --- |
-| `NUXT_PUBLIC_WORKER_BASE_URL` | URL de base du Worker. **Lue au build** pour construire la règle de proxy Nitro. À définir en local (`.env`) **et** dans Vercel. |
+| `NUXT_PUBLIC_WORKER_BASE_URL` | URL de base du Worker. **Lue au build** pour construire la règle de proxy Nitro. À définir en local (`.env`) **et** dans Cloudflare Pages. |
 
 > Le préfixe `NUXT_PUBLIC_` est conservé pour la compatibilité de la variable existante, mais la
 > valeur n'est **pas** exposée au client : elle vit dans `runtimeConfig` server-only et n'est
@@ -48,9 +48,11 @@ pnpm dev        # http://localhost:3000
 ## Build / déploiement
 
 ```bash
-pnpm build      # build de production (preset Nitro auto-détecté par Vercel)
+pnpm build      # build de production (preset Nitro cloudflare-pages)
 pnpm preview    # prévisualisation locale
 ```
 
-Déploiement sur Vercel : connecter le repo, définir `NUXT_PUBLIC_WORKER_BASE_URL`, le reste est
-auto-détecté.
+**Déploiement sur Cloudflare Pages** : connecter le repo GitHub (auto-deploy sur push), définir
+`NUXT_PUBLIC_WORKER_BASE_URL`, et déclarer dans `wrangler.toml` le binding **D1 dédié à l'auth**
+(`DB_AUTH`) + le flag `nodejs_compat`. L'authentification (Better Auth, cœur, sur une D1 dédiée)
+est décrite dans [docs/veille-analytics-plan.md](docs/veille-analytics-plan.md) (Partie C).

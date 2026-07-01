@@ -180,26 +180,84 @@ La plus simple, commence par elle car elle mappe directement `/api/articles`.
 
 ---
 
-CLAUDE: plan pour Auth
+### Partie C — Authentification (accès protégé)
+
+Objectif : verrouiller l'accès au dashboard derrière une connexion. Un seul compte admin (toi), pas d'inscription publique. Comme le titre du projet est orienté sécurité, cette partie est l'occasion de démontrer des pratiques concrètes : hachage de mot de passe, sessions signées, cookies `HttpOnly`, protection des routes serveur.
+
+> **Stack d'auth verrouillée** (décision « tout Cloudflare »)
+> - **Où vit l'auth :** au niveau de **Nitro** (le serveur Nuxt), pas sur le Worker. Le dashboard passe déjà par un **proxy Nitro** (`/api/*`, pattern BFF) ; en mettant la session au même endroit, le cookie est **same-origin**, sans galère de cookies cross-domaine entre le domaine Pages du dashboard et `*.workers.dev`. Le Worker garde son token d'ingestion (KV `AUTH`) et n'a pas à connaître les utilisateurs.
+> - **Base :** une **D1 dédiée à l'auth**, distincte de la base `veille-analytics` (articles), mais sur le **même compte Cloudflare**. On reste 100 % Cloudflare, et chaque repo possède proprement son schéma (pas de migrations croisées entre les deux repos).
+> - **Accès à la base :** le dashboard étant hébergé sur **Cloudflare Pages** (cf. Partie D), il obtient un **binding D1 natif** — pas d'API REST à bricoler. Adaptateur **Kysely + `kysely-d1`** (léger, taillé pour D1).
+> - **Package :** `better-auth` (le **cœur**, stable), monté dans une **route Nitro attrape-tout** (`server/api/auth/[...all]`). On écarte le module `@onmax/nuxt-better-auth` (encore en alpha) : plus de contrôle et de valeur pédagogique à câbler soi-même.
+
+### C1. Installer et configurer Better Auth
+
+- [ ]  Installer les dépendances : `better-auth`, `kysely`, `kysely-d1`
+- [ ]  Créer la **D1 dédiée** (`wrangler d1 create veille-auth`) et déclarer son binding (`DB_AUTH`) dans le `wrangler.toml` du dashboard
+- [ ]  Renseigner les secrets en `.env` (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`) — jamais commit ; le binding D1 remplace une URL/token de base
+- [ ]  Configurer Better Auth avec l'adaptateur Kysely (`kysely-d1`) + monter le handler dans `server/api/auth/[...all].ts`
+- [ ]  Générer et appliquer les migrations des tables Better Auth (`user`, `session`, `account`, `verification`) via `wrangler d1 migrations apply veille-auth`
+- [ ]  Activer **uniquement** email + password, **désactiver l'inscription ouverte**
+
+**Concepts :** route serveur attrape-tout Nitro, binding D1 (accès natif depuis Cloudflare), adaptateur Kysely, migrations D1, `runtimeConfig` server-only pour les secrets.
+
+### C2. Page de connexion + état de session
+
+- [ ]  Créer le client d'auth (`createAuthClient` de `better-auth/client`) dans un composable maison (ex. `useAuth`)
+- [ ]  Page `/login` : formulaire email + mot de passe (`UForm` / `UInput` Nuxt UI)
+- [ ]  Connexion via `authClient.signIn.email(...)`, redirection vers `/` au succès, gestion des erreurs (mauvais identifiants)
+- [ ]  Afficher l'utilisateur connecté + bouton **Déconnexion** dans la sidebar (`authClient.useSession()`, `authClient.signOut()`)
+- [ ]  Rediriger un visiteur déjà connecté hors de `/login`
+
+**Concepts :** client Better Auth (`createAuthClient`), session réactive (`useSession`), appels `signIn` / `signOut`, redirections sûres.
+
+### C3. Protéger les routes (le point critique sécurité)
+
+- [ ]  Protéger **les pages** : un middleware Nuxt (`middleware/auth.ts` global) qui vérifie la session et redirige vers `/login` (sauf `/login` lui-même)
+- [ ]  Protéger **le proxy `/api/*`** : sans ça, on contourne l'auth des pages en tapant l'API directement → un middleware serveur Nitro qui appelle `auth.api.getSession({ headers })` et renvoie **401** si absente
+- [ ]  Vérifier qu'un `curl` non authentifié sur `/api/articles` renvoie bien **401**
+
+**Concepts :** middleware Nuxt (route côté client/SSR), middleware serveur Nitro, vérification de session serveur (`auth.api.getSession`). Idée clé : **protéger l'UI ne suffit pas, il faut protéger la donnée**.
+
+### C4. Créer le compte admin (seed)
+
+- [ ]  Inscription fermée → créer ton compte via un **script de seed** ponctuel (ou une route d'inscription temporaire supprimée ensuite)
+- [ ]  Vérifier que le mot de passe est bien **haché** en base (jamais en clair)
+
+**Concepts :** seed, hachage (scrypt/argon2 selon Better Auth), moindre privilège (pas de signup public).
+
+### C5. Durcissement
+
+- [ ]  Cookies de session `HttpOnly` + `Secure` + `SameSite=Lax` (défauts Better Auth, à vérifier en prod)
+- [ ]  Activer le **rate limiting** sur la connexion (anti brute-force)
+- [ ]  Confirmer que la protection **CSRF** est active (Better Auth la gère ; vérifier `BETTER_AUTH_URL` / origines en prod)
+- [ ]  Relire la surface d'attaque : aucun secret exposé au client, aucune route de données non protégée
+
+**Concepts :** attributs de cookie, brute-force / rate limit, CSRF, revue de surface d'attaque.
+
+**Résultat** : le dashboard est inaccessible sans connexion — **pages et API**. Un seul compte admin, mot de passe haché, sessions signées same-origin. Une base concrète pour argumenter la partie sécurité du M3.2.
 
 ---
 
-### Partie C — Déploiement
+### Partie D — Déploiement
 
-### C1. Préparer le repo
+### D1. Préparer le repo
 
 - [ ]  `veille-dashboard` versionné sur GitHub (repo dédié ou sous-dossier — à décider)
 - [ ]  `.env` dans `.gitignore`, vérifier qu'aucune URL/secret n'est commit
 
-### C2. Vercel
+### D2. Cloudflare Pages
 
-- [ ]  Connecter le repo à Vercel
-- [ ]  Laisser Vercel auto-détecter Nuxt (preset Nitro `vercel`)
-- [ ]  Définir la variable d'env `NUXT_PUBLIC_WORKER_BASE_URL` (URL du Worker) dans le dashboard Vercel — **lue au build** pour construire la règle de proxy Nitro (cf. `nuxt.config.ts`)
+- [ ]  Configurer le preset Nitro `cloudflare-pages` (dans `nuxt.config.ts`) + créer le `wrangler.toml` du dashboard
+- [ ]  Déclarer le binding **D1 auth** (`DB_AUTH`) et le flag `nodejs_compat` dans `wrangler.toml`
+- [ ]  Créer le projet Pages et **connecter le repo GitHub** → auto-deploy sur push (équivalent Vercel)
+- [ ]  Définir la variable d'env `NUXT_PUBLIC_WORKER_BASE_URL` (URL du Worker) dans le dashboard Pages — **lue au build** pour construire la règle de proxy Nitro (cf. `nuxt.config.ts`)
+- [ ]  Ajouter les secrets d'auth dans Pages : `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (domaine de prod). La base auth passe par le binding `DB_AUTH`, pas par une URL/token.
+- [ ]  Appliquer les migrations d'auth sur la D1 distante (`wrangler d1 migrations apply veille-auth --remote`)
 - [ ]  Vérifier le déploiement auto à chaque push
-- [~]  Tester le CORS — **plus nécessaire** grâce au proxy Nitro (appels same-origin). À ne reconsidérer que si on appelle le Worker en direct depuis le client.
+- [~]  CORS — **non nécessaire** grâce au proxy Nitro (appels same-origin). À ne reconsidérer que si on appelle le Worker en direct depuis le client.
 
-**Concepts :** presets Nitro, variables d'env en production, proxy Nitro (BFF), CORS.
+**Concepts :** preset Nitro `cloudflare-pages`, bindings D1 (`wrangler.toml`, `nodejs_compat`), variables d'env / secrets en production, proxy Nitro (BFF).
 
 ## BONUS
 
@@ -211,7 +269,7 @@ CLAUDE: plan pour Auth
 ### Deux pièges déjà identifiés à ne pas oublier
 
 - **Encodage** `DÃ©veloppement` : à corriger côté Worker (header `charset=utf-8` / double-encodage) avant que ça pollue les labels.
-- **CORS** : ~~ton Worker devra autoriser l'origine Vercel en prod~~ → **résolu** via proxy Nitro côté dashboard (tous les appels sont same-origin, plus de CORS à gérer en dev comme en prod).
+- **CORS** : ~~ton Worker devra autoriser l'origine du dashboard en prod~~ → **résolu** via proxy Nitro côté dashboard (tous les appels sont same-origin, plus de CORS à gérer en dev comme en prod).
 
 ### Résumé de l'étape
 
@@ -220,15 +278,15 @@ CLAUDE: plan pour Auth
 - [x]  Vue tendances : graphique d'évolution par thème (librairie au choix : Chart.js, ou simple HTML/CSS)
 - [x]  Vue distribution : répartition par source et par thème
 - [x]  Vue détail : table paginée avec filtres (responsive desktop/mobile)
-- [ ]  Déployer sur Vercel (connecter le repo GitHub, déploiement automatique)
+- [ ]  Déployer sur Cloudflare Pages (connecter le repo GitHub, déploiement automatique)
 
 **Résultat** : un dashboard accessible en ligne qui visualise les données de veille.
 
 ### Étape 9 — GitHub Actions (CI/CD)
 
 - [ ]  Créer `.github/workflows/deploy.yml`
-- [ ]  Étapes : lint (ESLint) -> tests -> déploiement Worker (via Wrangler) -> déploiement dashboard (via Vercel)
-- [ ]  Ajouter les secrets dans GitHub (token Cloudflare, token Vercel)
+- [ ]  Étapes : lint (ESLint) -> tests -> déploiement Worker (via Wrangler). Le dashboard se déploie via l'intégration Git native de Cloudflare Pages (auto sur push) ; Actions ne fait que lint + tests pour lui.
+- [ ]  Ajouter les secrets dans GitHub (token Cloudflare pour le déploiement du Worker)
 - [ ]  Tester : faire un push, vérifier que le pipeline passe au vert
 
 **Résultat** : chaque push sur main déclenche lint + tests + déploiement automatique.
@@ -246,7 +304,7 @@ CLAUDE: plan pour Auth
 ### Étape 11 — Terraform (IaC)
 
 - [ ]  Installer Terraform CLI
-- [ ]  Écrire la configuration : provider Cloudflare, ressources D1, Worker, KV
+- [ ]  Écrire la configuration : provider Cloudflare, ressources D1 (articles **+ D1 auth**), Worker, KV, **projet Pages** (dashboard) avec son binding D1
 - [ ]  Importer les ressources existantes (`terraform import`)
 - [ ]  Vérifier : `terraform plan` ne montre aucun changement (l'état correspond à ce qui existe)
 - [ ]  Documenter : un README qui explique comment recréer l'infra from scratch
