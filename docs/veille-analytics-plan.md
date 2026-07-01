@@ -171,12 +171,16 @@ La plus simple, commence par elle car elle mappe directement `/api/articles`.
 
 ### B3. Vue tendances — évolution dans le temps
 
-- [ ]  Consommer `/api/stats/timeline` (volume quotidien)
-- [ ]  Graphe en ligne (`Line`, enregistrer `LineElement`, `PointElement`, `CategoryScale`, `LinearScale`)
-- [ ]  Mapper dates → axe X, counts → axe Y
-- [ ]  Même pattern `computed` + `<ClientOnly>`
+- [x]  Consommer `/api/stats/timeline` (volume quotidien)
+- [x]  Graphe en ligne (`Line`, enregistrer `LineElement`, `PointElement`, `CategoryScale`, `LinearScale`)
+- [x]  Mapper dates → axe X, counts → axe Y
+- [x]  Même pattern `computed` + `<ClientOnly>`
 
 **Concepts :** réutilisation du composant graphe, gestion de l'axe temporel.
+
+---
+
+CLAUDE: plan pour Auth
 
 ---
 
@@ -197,6 +201,11 @@ La plus simple, commence par elle car elle mappe directement `/api/articles`.
 
 **Concepts :** presets Nitro, variables d'env en production, proxy Nitro (BFF), CORS.
 
+## BONUS
+
+- [ ] Trouver un moyen de démarrer automatiquement et régulièrement la collecte d'articles (Node-RED)
+- [ ] Vérifier la documentation
+
 ---
 
 ### Deux pièges déjà identifiés à ne pas oublier
@@ -208,7 +217,7 @@ La plus simple, commence par elle car elle mappe directement `/api/articles`.
 
 - [x]  Initialiser un projet Nuxt.js
 - [x]  Connecter au Worker API (composable `useFetch` ou `$fetch`)
-- [ ]  Vue tendances : graphique d'évolution par thème (librairie au choix : Chart.js, ou simple HTML/CSS)
+- [x]  Vue tendances : graphique d'évolution par thème (librairie au choix : Chart.js, ou simple HTML/CSS)
 - [x]  Vue distribution : répartition par source et par thème
 - [x]  Vue détail : table paginée avec filtres (responsive desktop/mobile)
 - [ ]  Déployer sur Vercel (connecter le repo GitHub, déploiement automatique)

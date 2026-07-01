@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
-// Distribution active (B2) ; Tendances arrive en B3 (désactivée pour l'instant).
 const items: NavigationMenuItem[][] = [
   [
     { label: 'Articles', icon: 'i-lucide-newspaper', to: '/' }
@@ -9,7 +8,7 @@ const items: NavigationMenuItem[][] = [
   [
     { label: 'STATISTIQUES', type: 'label' },
     { label: 'Distribution', icon: 'i-lucide-chart-pie', to: '/distribution' },
-    { label: 'Tendances', icon: 'i-lucide-trending-up', disabled: true }
+    { label: 'Tendances', icon: 'i-lucide-trending-up', to: '/tendances' }
   ]
 ]
 </script>
