@@ -11,11 +11,18 @@ export async function proxyToWorker(event: H3Event) {
   // Sur Cloudflare, les variables du Worker vivent sur event.context.cloudflare.env et ne sont
   // pas propagées de façon fiable vers runtimeConfig au runtime. On lit donc l'env CF en priorité
   // (comme auth.ts pour DB_AUTH), avec runtimeConfig en repli pour le dev (.env via process.env).
-  const env = event.context.cloudflare?.env as { NUXT_WORKER_BASE_URL?: string } | undefined
+  const env = event.context.cloudflare?.env as
+    | { NUXT_WORKER_BASE_URL?: string; ANALYTICS?: { fetch: typeof fetch } }
+    | undefined
   const base = env?.NUXT_WORKER_BASE_URL || useRuntimeConfig(event).workerBaseUrl
   if (!base) {
     throw createError({ statusCode: 500, statusMessage: 'URL du Worker indisponible' })
   }
 
-  return proxyRequest(event, base + event.path)
+  // En prod, on route via le service binding (fetch interne Worker→Worker) : deux Workers
+  // d'un même compte ne peuvent pas s'appeler par leur URL *.workers.dev (erreur 1042). Le
+  // binding ignore le hostname et route sur le chemin. En dev (Node), pas de binding → fetch
+  // public classique vers l'URL du Worker (qui, lui, fonctionne hors contexte Worker).
+  const fetcher = import.meta.dev ? undefined : env?.ANALYTICS
+  return proxyRequest(event, base + event.path, fetcher ? { fetch: fetcher.fetch.bind(fetcher) } : undefined)
 }

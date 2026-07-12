@@ -23,3 +23,10 @@ binding = "DB_AUTH"
 database_name = "veille-auth"
 database_id = "d2a669ab-dc04-4242-9493-e0af5fc275b9"
 migrations_dir = "migrations"
+
+# Le dashboard (Worker) ne peut PAS fetch le Worker analytics via son URL *.workers.dev
+# (deux Workers du même compte → erreur 1042). Service binding = routage interne Worker→Worker,
+# sans sous-requête publique. proxyToWorker s'en sert comme `fetch` en prod.
+[[services]]
+binding = "ANALYTICS"
+service = "veille-analytics"
