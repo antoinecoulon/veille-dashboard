@@ -3,11 +3,13 @@
 // CORS et garde l'URL du Worker côté serveur. Le proxy vers le Worker se fait dans des
 // routes serveur explicites (server/api/articles|stats/*) qui vérifient d'abord la
 // session — un proxy `routeRules` court-circuite les middlewares/hooks d'auth.
-const workerBaseUrl = process.env.NUXT_PUBLIC_WORKER_BASE_URL || ''
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  // Preset Nitro pour la prod : sortie `dist/` (avec `_worker.js`) consommée par Cloudflare
+  // Pages. Explicite plutôt qu'auto-détecté par l'image de build Pages → build reproductible.
+  nitro: { preset: 'cloudflare-pages' },
   // nitro-cloudflare-dev émule les bindings Cloudflare (D1 DB_AUTH) dans `nuxt dev`
   // via getPlatformProxy → accessibles sur event.context.cloudflare.env côté serveur.
   modules: ['@nuxt/ui', 'nitro-cloudflare-dev'],
@@ -30,8 +32,9 @@ export default defineNuxtConfig({
     fallback: 'light'
   },
   runtimeConfig: {
-    // server-only : non exposé au client
-    workerBaseUrl,
+    // server-only : non exposé au client. Override au runtime par NUXT_WORKER_BASE_URL
+    // (convention Nuxt : NUXT_ + clé camelCase). Lu par proxyToWorker.
+    workerBaseUrl: '',
     // Secrets Better Auth (server-only). Alimentés par NUXT_BETTER_AUTH_SECRET / _URL (.env).
     betterAuthSecret: '',
     betterAuthUrl: ''

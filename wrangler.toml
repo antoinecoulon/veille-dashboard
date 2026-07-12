@@ -2,11 +2,14 @@ name = "veille-dashboard"
 compatibility_date = "2025-07-15"
 compatibility_flags = ["nodejs_compat"]
 
+# Sortie du build Nitro (preset cloudflare-pages) servie par Pages. Sa présence fait aussi
+# lire les bindings ci-dessous par le projet Pages — pas besoin de les saisir à la main.
+pages_build_output_dir = "dist"
+
 # Base D1 dédiée à l'authentification (Better Auth).
 # En dev, nitro-cloudflare-dev émule ce binding via une SQLite locale (.wrangler/).
-# database_id est un placeholder tant que la D1 distante n'est pas créée (Partie D).
 [[d1_databases]]
 binding = "DB_AUTH"
 database_name = "veille-auth"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "d2a669ab-dc04-4242-9493-e0af5fc275b9"
 migrations_dir = "migrations"

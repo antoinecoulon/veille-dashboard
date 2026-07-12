@@ -9,7 +9,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "auth:generate": "npx @better-auth/cli generate --config scripts/auth-generate.ts --output migrations/0001_better_auth.sql -y",
-    "db:migrate:local": "wrangler d1 migrations apply veille-auth --local"
+    "db:migrate:local": "wrangler d1 migrations apply veille-auth --local",
+    "db:migrate:remote": "wrangler d1 migrations apply veille-auth --remote"
   },
   "dependencies": {
     "@nuxt/ui": "^4.9.0",
