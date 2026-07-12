@@ -2,6 +2,7 @@
   "name": "veille-dashboard",
   "type": "module",
   "private": true,
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -28,5 +29,8 @@
     "@types/node": "^26.0.0",
     "nitro-cloudflare-dev": "^0.2.2",
     "wrangler": "^4.108.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@parcel/watcher", "esbuild", "workerd"]
   }
 }
