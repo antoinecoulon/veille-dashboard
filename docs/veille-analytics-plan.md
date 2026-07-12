@@ -255,23 +255,39 @@ Objectif : verrouiller l'accès au dashboard derrière une connexion. Un seul co
 
 ### Partie D — Déploiement
 
+> **Pivot Pages → Workers (2026-07-12)** : le projet Cloudflare a été créé en **Workers Builds**
+> (déploiement via `npx wrangler deploy`), incompatible avec une sortie Pages. Plutôt que de
+> recréer un projet Pages, on a **adopté la cible Workers** (direction recommandée par Cloudflare
+> aujourd'hui) : preset Nitro `cloudflare_module`, `main` + `[assets]` dans `wrangler.toml`. Le
+> binding D1 et les variables restent identiques. URL de prod : `*.workers.dev` (pas `*.pages.dev`).
+
 ### D1. Préparer le repo
 
-- [ ]  `veille-dashboard` versionné sur GitHub (repo dédié ou sous-dossier — à décider)
-- [ ]  `.env` dans `.gitignore`, vérifier qu'aucune URL/secret n'est commit
+- [x]  `veille-dashboard` versionné sur GitHub (repo dédié `antoinecoulon/veille-dashboard`)
+- [x]  `.env` dans `.gitignore`, aucun secret commit (vérifié : seuls `.env.example` + config)
 
-### D2. Cloudflare Pages
+### D2. Cloudflare Workers (Workers Builds)
 
-- [ ]  Configurer le preset Nitro `cloudflare-pages` (dans `nuxt.config.ts`) + créer le `wrangler.toml` du dashboard
-- [ ]  Déclarer le binding **D1 auth** (`DB_AUTH`) et le flag `nodejs_compat` dans `wrangler.toml`
-- [ ]  Créer le projet Pages et **connecter le repo GitHub** → auto-deploy sur push (équivalent Vercel)
-- [ ]  Définir la variable d'env `NUXT_PUBLIC_WORKER_BASE_URL` (URL du Worker) dans le dashboard Pages — exposée en `runtimeConfig.workerBaseUrl` (server-only) et lue par les routes serveur de proxy (`server/api/*` via `proxyToWorker`) pour relayer vers le Worker
-- [ ]  Ajouter les secrets d'auth dans Pages : `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (domaine de prod). La base auth passe par le binding `DB_AUTH`, pas par une URL/token.
-- [ ]  Appliquer les migrations d'auth sur la D1 distante (`wrangler d1 migrations apply veille-auth --remote`)
-- [ ]  Vérifier le déploiement auto à chaque push
+- [x]  Preset Nitro `cloudflare_module` dans `nuxt.config.ts` + `wrangler.toml` (`main` + `[assets]`)
+- [x]  Binding **D1 auth** (`DB_AUTH`) + flag `nodejs_compat` dans `wrangler.toml` (avec le vrai `database_id`)
+- [x]  Créer le projet Workers et **connecter le repo GitHub** → auto-deploy sur push
+- [x]  Variable `NUXT_WORKER_BASE_URL` (renommée depuis `NUXT_PUBLIC_...`) sur le Worker — `runtimeConfig.workerBaseUrl` server-only, override runtime, lue par `proxyToWorker`
+- [x]  Secrets d'auth sur le Worker : `NUXT_BETTER_AUTH_SECRET`, `NUXT_BETTER_AUTH_URL` (URL `*.workers.dev`). La base auth passe par le binding `DB_AUTH`.
+- [x]  Migrations d'auth sur la D1 distante (`pnpm db:migrate:remote` → `0001` + `0002`, 5 tables)
+- [x]  Déploiement auto vérifié (build+deploy vert ; `/` 200, `/api/*` 401 sans session, CSRF 403)
 - [~]  CORS — **non nécessaire** grâce au proxy Nitro (appels same-origin). À ne reconsidérer que si on appelle le Worker en direct depuis le client.
 
-**Concepts :** preset Nitro `cloudflare-pages`, bindings D1 (`wrangler.toml`, `nodejs_compat`), variables d'env / secrets en production, proxy Nitro (BFF).
+**Piège rencontré** : `pnpm-workspace.yaml` ne contenait qu'une clé `allowBuilds` non standard
+(ignorée par pnpm) et **sans champ `packages`** → l'image de build Cloudflare (pnpm 10.11) échoue
+« packages field missing or empty ». Corrigé : suppression du fichier (repo mono-package),
+allowlist des build scripts via `pnpm.onlyBuiltDependencies`, `packageManager` épinglé.
+
+**Seed admin (D4)** : inscription fermée → hash scrypt généré **en local** par Better Auth
+(`better-auth/crypto`, `scripts/seed-admin-sql.mjs`), inséré sur la D1 distante via
+`wrangler d1 execute --remote`. Mécanisme validé end-to-end en local (login 200 + cookie).
+
+**Concepts :** preset Nitro `cloudflare_module` (Worker + Workers Assets), bindings D1
+(`wrangler.toml`, `nodejs_compat`), variables d'env / secrets en production, proxy Nitro (BFF).
 
 ## BONUS
 
@@ -292,7 +308,7 @@ Objectif : verrouiller l'accès au dashboard derrière une connexion. Un seul co
 - [x]  Vue tendances : graphique d'évolution par thème (librairie au choix : Chart.js, ou simple HTML/CSS)
 - [x]  Vue distribution : répartition par source et par thème
 - [x]  Vue détail : table paginée avec filtres (responsive desktop/mobile)
-- [ ]  Déployer sur Cloudflare Pages (connecter le repo GitHub, déploiement automatique)
+- [x]  Déployer sur Cloudflare **Workers** (repo GitHub connecté, déploiement automatique) — cf. Partie D
 
 **Résultat** : un dashboard accessible en ligne qui visualise les données de veille.
 
