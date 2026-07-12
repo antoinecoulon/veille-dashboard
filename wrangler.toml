@@ -1,10 +1,12 @@
 name = "veille-dashboard"
+main = ".output/server/index.mjs"
 compatibility_date = "2025-07-15"
 compatibility_flags = ["nodejs_compat"]
 
-# Sortie du build Nitro (preset cloudflare-pages) servie par Pages. Sa présence fait aussi
-# lire les bindings ci-dessous par le projet Pages — pas besoin de les saisir à la main.
-pages_build_output_dir = "dist"
+# Assets statiques (Workers Assets) produits par le preset Nitro cloudflare_module.
+# Servis en priorité ; toute requête non matchée retombe sur le Worker (SSR).
+[assets]
+directory = ".output/public"
 
 # Base D1 dédiée à l'authentification (Better Auth).
 # En dev, nitro-cloudflare-dev émule ce binding via une SQLite locale (.wrangler/).

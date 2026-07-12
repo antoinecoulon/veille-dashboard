@@ -7,9 +7,10 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
-  // Preset Nitro pour la prod : sortie `dist/` (avec `_worker.js`) consommée par Cloudflare
-  // Pages. Explicite plutôt qu'auto-détecté par l'image de build Pages → build reproductible.
-  nitro: { preset: 'cloudflare-pages' },
+  // Preset Nitro pour la prod : Worker Cloudflare (module) + assets statiques natifs
+  // (Workers Assets). Sortie `.output/server/index.mjs` (Worker) + `.output/public`
+  // (assets), déployée par `wrangler deploy` (main + [assets] dans wrangler.toml).
+  nitro: { preset: 'cloudflare_module' },
   // nitro-cloudflare-dev émule les bindings Cloudflare (D1 DB_AUTH) dans `nuxt dev`
   // via getPlatformProxy → accessibles sur event.context.cloudflare.env côté serveur.
   modules: ['@nuxt/ui', 'nitro-cloudflare-dev'],
