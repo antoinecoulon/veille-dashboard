@@ -3,6 +3,14 @@ main = ".output/server/index.mjs"
 compatibility_date = "2025-07-15"
 compatibility_flags = ["nodejs_compat"]
 
+# Variables NON secrètes, lues au runtime sur event.context.cloudflare.env.
+# Déclarées ICI (pas seulement dans le dashboard) car `wrangler deploy` — utilisé par
+# Workers Builds à chaque push — ÉCRASE les variables plaintext absentes de ce fichier.
+# Le secret de session reste un vrai secret (dashboard / `wrangler secret put`), non versionné.
+[vars]
+NUXT_WORKER_BASE_URL = "https://veille-analytics.a-antoinecoulon.workers.dev"
+NUXT_BETTER_AUTH_URL = "https://veille-dashboard.a-antoinecoulon.workers.dev"
+
 # Assets statiques (Workers Assets) produits par le preset Nitro cloudflare_module.
 # Servis en priorité ; toute requête non matchée retombe sur le Worker (SSR).
 [assets]
