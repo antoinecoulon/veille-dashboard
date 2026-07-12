@@ -1,0 +1,12 @@
+name = "veille-dashboard"
+compatibility_date = "2025-07-15"
+compatibility_flags = ["nodejs_compat"]
+
+# Base D1 dédiée à l'authentification (Better Auth).
+# En dev, nitro-cloudflare-dev émule ce binding via une SQLite locale (.wrangler/).
+# database_id est un placeholder tant que la D1 distante n'est pas créée (Partie D).
+[[d1_databases]]
+binding = "DB_AUTH"
+database_name = "veille-auth"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

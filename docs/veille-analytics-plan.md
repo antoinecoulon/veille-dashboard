@@ -82,7 +82,7 @@ L'objectif est d'exposer les données et de les visualiser, avec un pipeline de 
     - [x]  `GET /api/stats/timeline` — volume d'articles par jour/semaine
         - [x]  Nécessite de convertir les dates du format RFC 822 vers ISO
     - [x]  `GET /api/stats/sources` — distribution par source
-- [~]  Configurer le CORS (autoriser uniquement le domaine Vercel) — **contourné côté dashboard** : un proxy Nitro (`routeRules`) rend tous les appels same-origin, donc le CORS n'est plus bloquant. À ajouter sur le Worker seulement si on veut un jour l'appeler en direct depuis le navigateur.
+- [~]  Configurer le CORS (autoriser uniquement le domaine Vercel) — **contourné côté dashboard** : un proxy Nitro (routes serveur `server/api/*` depuis C3, `routeRules` à l'origine) rend tous les appels same-origin, donc le CORS n'est plus bloquant. À ajouter sur le Worker seulement si on veut un jour l'appeler en direct depuis le navigateur.
 - [x]  Tester chaque endpoint avec curl
 - [x]  Déployer
 
@@ -192,48 +192,62 @@ Objectif : verrouiller l'accès au dashboard derrière une connexion. Un seul co
 
 ### C1. Installer et configurer Better Auth
 
-- [ ]  Installer les dépendances : `better-auth`, `kysely`, `kysely-d1`
-- [ ]  Créer la **D1 dédiée** (`wrangler d1 create veille-auth`) et déclarer son binding (`DB_AUTH`) dans le `wrangler.toml` du dashboard
-- [ ]  Renseigner les secrets en `.env` (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`) — jamais commit ; le binding D1 remplace une URL/token de base
-- [ ]  Configurer Better Auth avec l'adaptateur Kysely (`kysely-d1`) + monter le handler dans `server/api/auth/[...all].ts`
-- [ ]  Générer et appliquer les migrations des tables Better Auth (`user`, `session`, `account`, `verification`) via `wrangler d1 migrations apply veille-auth`
-- [ ]  Activer **uniquement** email + password, **désactiver l'inscription ouverte**
+- [x]  Installer les dépendances : `better-auth` (+ `wrangler`, `nitro-cloudflare-dev`, `@cloudflare/workers-types` en dev). **`kysely`/`kysely-d1` non nécessaires** : Better Auth 1.6 auto-détecte un binding D1 (méthodes `batch`/`exec`/`prepare`) et applique son dialect D1 interne.
+- [~]  Déclarer le binding **D1** (`DB_AUTH`) dans le `wrangler.toml` du dashboard. **D1 distante reportée à la Partie D** (choix « local d'abord ») : dev sur SQLite locale `.wrangler/` émulée par `nitro-cloudflare-dev` ; `database_id` = placeholder jusqu'à `wrangler d1 create veille-auth`.
+- [x]  Renseigner les secrets en `.env` (`NUXT_BETTER_AUTH_SECRET`, `NUXT_BETTER_AUTH_URL`) → mappés en `runtimeConfig` server-only ; `.env.example` créé, `.wrangler/` gitignoré.
+- [x]  Configurer Better Auth (fabrique **par requête** `serverAuth(event)` dans `server/utils/auth.ts`, binding D1 lu sur `event.context.cloudflare.env`) + handler monté dans `server/api/auth/[...all].ts`.
+- [x]  Générer (via `@better-auth/cli generate` contre une SQLite `node:sqlite` en mémoire) et appliquer les migrations des tables `user`, `session`, `account`, `verification` (`wrangler d1 migrations apply veille-auth --local`).
+- [x]  Activer **uniquement** email + password (`emailAndPassword.enabled`), **inscription désactivée** (`disableSignUp: true`) — vérifié : sign-up → 400 `EMAIL_PASSWORD_SIGN_UP_DISABLED`.
 
-**Concepts :** route serveur attrape-tout Nitro, binding D1 (accès natif depuis Cloudflare), adaptateur Kysely, migrations D1, `runtimeConfig` server-only pour les secrets.
+**Concepts :** route serveur attrape-tout Nitro, binding D1 (accès natif Cloudflare, **par requête**), auto-détection D1 par Better Auth, migrations D1, `runtimeConfig` server-only pour les secrets.
+
+> **Note C1** — pièges rencontrés et corrigés :
+> - **Collision proxy** : la route-rule `/api/**` → Worker avalait aussi `/api/auth/**` (le proxy gagne sur la route-fichier, la spécificité ne suffit pas). Corrigé en restreignant le proxy aux préfixes analytics (`/api/articles`, `/api/articles/**`, `/api/stats/**`) et en laissant `/api/auth/**` au handler local. **(Obsolète depuis C3 : le proxy `routeRules` a été entièrement remplacé par des routes serveur explicites — cf. Note C3 — cette collision n'existe plus.)**
+> - **Splat vide** : `/api/articles/**` ne matche pas `/api/articles` exact → ajouter la règle exacte `/api/articles` en plus du wildcard.
+> - **Transactions D1** : le gotcha des vieilles versions (better-auth #4732) n'existe plus en 1.6 — `transaction` vaut déjà `false` par défaut pour l'adaptateur Kysely.
+> - **Génération migrations** : la CLI Better Auth ne voit pas le binding D1 → schéma généré contre `node:sqlite` (intégré à Node 24, zéro dép native), SQL directement applicable à D1. Script `pnpm auth:generate`.
 
 ### C2. Page de connexion + état de session
 
-- [ ]  Créer le client d'auth (`createAuthClient` de `better-auth/client`) dans un composable maison (ex. `useAuth`)
-- [ ]  Page `/login` : formulaire email + mot de passe (`UForm` / `UInput` Nuxt UI)
-- [ ]  Connexion via `authClient.signIn.email(...)`, redirection vers `/` au succès, gestion des erreurs (mauvais identifiants)
-- [ ]  Afficher l'utilisateur connecté + bouton **Déconnexion** dans la sidebar (`authClient.useSession()`, `authClient.signOut()`)
-- [ ]  Rediriger un visiteur déjà connecté hors de `/login`
+- [x]  Créer le client d'auth (`createAuthClient` de **`better-auth/vue`** — variante Vue avec `useSession` réactif) dans `app/composables/useAuth.ts` (singleton, same-origin `/api/auth`)
+- [x]  Page `/login` : **`UAuthForm`** (Nuxt UI 4.9 — gère champs/validation/bouton loading) dans une carte centrée, `layout: false` (pas de sidebar)
+- [x]  Connexion via `authClient.signIn.email(...)`, redirection vers `/` au succès, erreur affichée dans un `UAlert` (message générique sur `INVALID_EMAIL_OR_PASSWORD`)
+- [x]  Afficher l'utilisateur connecté + bouton **Déconnexion** dans la sidebar (`useSession()` + `signOut()`), enveloppé dans `<ClientOnly>` (session hydratée côté client)
+- [x]  Rediriger un visiteur déjà connecté hors de `/login` (`watchEffect` sur `session.data`)
 
-**Concepts :** client Better Auth (`createAuthClient`), session réactive (`useSession`), appels `signIn` / `signOut`, redirections sûres.
+**Concepts :** client Better Auth (`createAuthClient` version Vue), session réactive (`useSession`), appels `signIn` / `signOut`, redirections sûres, `<ClientOnly>` (mismatch d'hydratation).
+
+> **Note C2** — vérifié **sans login réussi** (compte différé à C4) : rendu de `/login` (formulaire, sans sidebar), dashboard `/` intact, aucune erreur/mismatch d'hydratation. Le happy-path (login OK → footer avec email → déconnexion) sera validé après le seed C4. `UForm`/`UInput` du plan initial remplacés par `UAuthForm` (plus haut niveau, existe en v4.9).
 
 ### C3. Protéger les routes (le point critique sécurité)
 
-- [ ]  Protéger **les pages** : un middleware Nuxt (`middleware/auth.ts` global) qui vérifie la session et redirige vers `/login` (sauf `/login` lui-même)
-- [ ]  Protéger **le proxy `/api/*`** : sans ça, on contourne l'auth des pages en tapant l'API directement → un middleware serveur Nitro qui appelle `auth.api.getSession({ headers })` et renvoie **401** si absente
-- [ ]  Vérifier qu'un `curl` non authentifié sur `/api/articles` renvoie bien **401**
+- [x]  Protéger **les pages** : middleware Nuxt global `app/middleware/auth.global.ts`, **client-only** (`import.meta.server` return — le client Better Auth n'a pas d'URL absolue), qui `await useAuth().getSession()` et redirige vers `/login` (sauf `/login`).
+- [x]  Protéger **le proxy `/api/*`** : la vérif se fait dans des **routes serveur explicites** (`server/api/articles/*`, `server/api/stats/*`) via un util `proxyToWorker` (`server/utils/proxyWorker.ts`) qui appelle `serverAuth(event).api.getSession({ headers })`, renvoie **401** si absente, sinon `proxyRequest` vers le Worker. Le proxy `routeRules` a été **supprimé** de `nuxt.config.ts`.
+- [x]  Vérifié : `curl` non authentifié → **401** sur `/api/articles`, `/api/stats/themes`, `/api/stats/sources` ; `/api/auth/get-session` et les pages restent **200**.
 
-**Concepts :** middleware Nuxt (route côté client/SSR), middleware serveur Nitro, vérification de session serveur (`auth.api.getSession`). Idée clé : **protéger l'UI ne suffit pas, il faut protéger la donnée**.
+**Concepts :** middleware Nuxt (route côté client/SSR), routes serveur Nitro + `proxyRequest`, vérification de session serveur (`auth.api.getSession`). Idée clé : **protéger l'UI ne suffit pas, il faut protéger la donnée**.
+
+> **Note C3** — piège majeur : un proxy `routeRules` (`{ proxy }`) **court-circuite** aussi bien un `server/middleware/` qu'un hook Nitro `request` — le proxy s'exécute avant, et un `throw` dans le hook `request` est **avalé** (testé : la route restait 200). Impossible d'intercepter l'auth « autour » d'une route-rule proxy. Solution : **abandonner le proxy `routeRules`** et le reconstruire en **routes serveur explicites** (handlers `defineEventHandler`) où `throw createError(401)` bloque réellement l'appel au Worker. Deux fichiers par ressource pour couvrir base + sous-chemins (`articles/index.ts` + `articles/[...path].ts`), car un splat `[...path]` ne matche pas le chemin exact. Défense **default-deny** conservée : chaque handler passe par `proxyToWorker` qui vérifie la session en premier. Happy-path connecté (200 avec cookie) différé au seed C4.
 
 ### C4. Créer le compte admin (seed)
 
-- [ ]  Inscription fermée → créer ton compte via un **script de seed** ponctuel (ou une route d'inscription temporaire supprimée ensuite)
-- [ ]  Vérifier que le mot de passe est bien **haché** en base (jamais en clair)
+- [x]  Inscription fermée → compte créé via une **route de seed temporaire** `server/api/_seed-admin.post.ts` (dev-only, instance Better Auth jetable avec inscription activée, `signUpEmail`), **supprimée après usage**. Identifiants lus depuis `.env` (`SEED_ADMIN_EMAIL`/`PASSWORD`), retirés ensuite.
+- [x]  Vérifié : `account.password` est un **hash** scrypt (format `salt:hash`, 161 car.), pas de clair. Chaîne complète validée : login → **200** + cookie `HttpOnly; SameSite=Lax` ; `/api/articles` avec cookie → **200**, sans cookie → **401**.
 
 **Concepts :** seed, hachage (scrypt/argon2 selon Better Auth), moindre privilège (pas de signup public).
 
+> **Note C4** — `getPlatformProxy()` (wrangler), la voie standard d'un script de seed standalone pour accéder au binding D1 hors requête, **se bloque dans ce WSL** (jamais résolu, tué à 45s/120s). D'où le choix de la **route temporaire** (binding D1 en contexte de requête, chemin déjà prouvé). `wrangler d1 execute --local`, lui, fonctionne (utilisé pour vérifier le hash). Config app `disableSignUp: true` **inchangée** ; la route jetable utilise sa propre instance. Seed **prod** (Part D) : même approche mais garde par **token** (`import.meta.dev` bloque en prod).
+
 ### C5. Durcissement
 
-- [ ]  Cookies de session `HttpOnly` + `Secure` + `SameSite=Lax` (défauts Better Auth, à vérifier en prod)
-- [ ]  Activer le **rate limiting** sur la connexion (anti brute-force)
-- [ ]  Confirmer que la protection **CSRF** est active (Better Auth la gère ; vérifier `BETTER_AUTH_URL` / origines en prod)
-- [ ]  Relire la surface d'attaque : aucun secret exposé au client, aucune route de données non protégée
+- [x]  Cookies de session `HttpOnly` + `SameSite=Lax` **vérifiés** (en-tête `Set-Cookie` au login C4/C5). `Secure` : absent en dev (http local, normal), **auto en prod** (Better Auth l'active sur `baseURL` https) → à re-confirmer une fois déployé (Part D).
+- [x]  **Rate limiting activé** (`rateLimit: { enabled: true, storage: 'database' }` dans `server/utils/auth.ts`). Règle stricte **intégrée** anti-brute-force sur `/sign-in`, `/sign-up`, `/change-password`, `/change-email` : **max 3 / 10s**. Vérifié : 3× 401 puis **429** à la 4e tentative ; compteur persisté en table D1 `rateLimit` puis expire (login légitime non bloqué au-delà de la fenêtre). `storage: 'database'` **obligatoire** sur Cloudflare (mémoire non partagée entre isolates). Migration `migrations/0002_rate_limit.sql`.
+- [x]  **CSRF vérifiée** : Better Auth compare l'`Origin` aux `trustedOrigins` (= `baseURL`). Testé : `Origin: http://evil.com` → **403 `INVALID_ORIGIN`** ; `Origin: localhost` accepté. En prod, `NUXT_BETTER_AUTH_URL` = domaine de prod suffit.
+- [x]  **Surface d'attaque relue** : aucun `runtimeConfig.public` (secrets `betterAuthSecret`/`workerBaseUrl`/`betterAuthUrl` **server-only**, zéro référence dans `app/`) ; routes données `/api/articles` + `/api/stats/*` → 401 sans session ; `/api/auth/*` public par design ; route de seed C4 supprimée.
 
-**Concepts :** attributs de cookie, brute-force / rate limit, CSRF, revue de surface d'attaque.
+**Concepts :** attributs de cookie, brute-force / rate limit (storage D1 vs mémoire en serverless), CSRF (contrôle d'origine), revue de surface d'attaque.
+
+> **Note C5** — le rate limit Better Auth est par défaut `storage: 'memory'` et `enabled: isProduction`. Sur Cloudflare (isolates éphémères et non partagés), la mémoire rend le compteur contournable → on force `storage: 'database'` (table `rateLimit`, générée via `pnpm auth:generate` puis extraite en `0002_rate_limit.sql`) et `enabled: true` (actif aussi en dev, pour tester). `scripts/auth-generate.ts` reflète ce `rateLimit` pour rester en phase. Cookies `Secure` et CSRF sont des **défauts** Better Auth (rien à coder), juste vérifiés.
 
 **Résultat** : le dashboard est inaccessible sans connexion — **pages et API**. Un seul compte admin, mot de passe haché, sessions signées same-origin. Une base concrète pour argumenter la partie sécurité du M3.2.
 
@@ -251,7 +265,7 @@ Objectif : verrouiller l'accès au dashboard derrière une connexion. Un seul co
 - [ ]  Configurer le preset Nitro `cloudflare-pages` (dans `nuxt.config.ts`) + créer le `wrangler.toml` du dashboard
 - [ ]  Déclarer le binding **D1 auth** (`DB_AUTH`) et le flag `nodejs_compat` dans `wrangler.toml`
 - [ ]  Créer le projet Pages et **connecter le repo GitHub** → auto-deploy sur push (équivalent Vercel)
-- [ ]  Définir la variable d'env `NUXT_PUBLIC_WORKER_BASE_URL` (URL du Worker) dans le dashboard Pages — **lue au build** pour construire la règle de proxy Nitro (cf. `nuxt.config.ts`)
+- [ ]  Définir la variable d'env `NUXT_PUBLIC_WORKER_BASE_URL` (URL du Worker) dans le dashboard Pages — exposée en `runtimeConfig.workerBaseUrl` (server-only) et lue par les routes serveur de proxy (`server/api/*` via `proxyToWorker`) pour relayer vers le Worker
 - [ ]  Ajouter les secrets d'auth dans Pages : `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (domaine de prod). La base auth passe par le binding `DB_AUTH`, pas par une URL/token.
 - [ ]  Appliquer les migrations d'auth sur la D1 distante (`wrangler d1 migrations apply veille-auth --remote`)
 - [ ]  Vérifier le déploiement auto à chaque push

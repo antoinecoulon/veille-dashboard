@@ -11,6 +11,15 @@ const items: NavigationMenuItem[][] = [
     { label: 'Tendances', icon: 'i-lucide-trending-up', to: '/tendances' }
   ]
 ]
+
+// Session réactive (Better Auth) : alimente l'affichage utilisateur du footer.
+const authClient = useAuth()
+const session = authClient.useSession()
+
+async function logout() {
+  await authClient.signOut()
+  await navigateTo('/login')
+}
 </script>
 
 <template>
@@ -28,13 +37,33 @@ const items: NavigationMenuItem[][] = [
       </template>
 
       <template #footer>
-        <div class="flex items-center gap-2.5 w-full">
-          <UAvatar icon="i-lucide-user" size="sm" />
-          <div class="min-w-0">
-            <p class="text-sm font-medium leading-tight">Compte</p>
-            <p class="font-mono text-xs text-muted truncate">veille@dev</p>
+        <!-- ClientOnly : la session s'hydrate côté client (data null au SSR) -->
+        <ClientOnly>
+          <div v-if="session.data" class="flex items-center gap-2.5 w-full">
+            <UAvatar icon="i-lucide-user" size="sm" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium leading-tight truncate">{{ session.data.user.name || 'Admin' }}</p>
+              <p class="font-mono text-xs text-muted truncate">{{ session.data.user.email }}</p>
+            </div>
+            <UButton
+              icon="i-lucide-log-out"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              aria-label="Se déconnecter"
+              @click="logout"
+            />
           </div>
-        </div>
+          <UButton
+            v-else
+            to="/login"
+            icon="i-lucide-log-in"
+            color="neutral"
+            variant="subtle"
+            label="Se connecter"
+            block
+          />
+        </ClientOnly>
       </template>
     </UDashboardSidebar>
 
