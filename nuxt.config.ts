@@ -13,7 +13,7 @@ export default defineNuxtConfig({
   nitro: { preset: 'cloudflare_module' },
   // nitro-cloudflare-dev émule les bindings Cloudflare (D1 DB_AUTH) dans `nuxt dev`
   // via getPlatformProxy → accessibles sur event.context.cloudflare.env côté serveur.
-  modules: ['@nuxt/ui', 'nitro-cloudflare-dev'],
+  modules: ['@nuxt/ui', 'nitro-cloudflare-dev', '@nuxt/eslint'],
   css: ['~/assets/css/main.css'],
   app: {
     head: {
