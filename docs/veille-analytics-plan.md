@@ -336,12 +336,20 @@ déployés).
 
 ### Étape 9 — GitHub Actions (CI/CD)
 
-- [ ]  Créer `.github/workflows/deploy.yml`
-- [ ]  Étapes : lint (ESLint) -> tests -> déploiement Worker (via Wrangler). Le dashboard se déploie via l'intégration Git native de Cloudflare Pages (auto sur push) ; Actions ne fait que lint + tests pour lui.
-- [ ]  Ajouter les secrets dans GitHub (token Cloudflare pour le déploiement du Worker)
-- [ ]  Tester : faire un push, vérifier que le pipeline passe au vert
+- [x]  Créer `.github/workflows/ci.yml` — **un workflow par dépôt** (deux repos Git distincts, pas de monorepo)
+- [x]  `veille-analytics` : job `quality` (typecheck `tsc --noEmit` + lint ESLint) sur push + PR, puis job `deploy` (`wrangler deploy`) sur push `main` uniquement
+- [x]  `veille-dashboard` : job `quality` (typecheck `nuxt typecheck` + lint) — **pas de deploy** : Cloudflare **Workers Builds** déploie déjà sur push (pivot Pages → Workers, cf. Partie D)
+- [x]  Ajouter les secrets `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` (GitHub Actions) pour le déploiement du Worker
+- [x]  Tester : PR sur les deux repos → `quality` au vert ; merge `veille-analytics` → `deploy` OK
+- [ ]  Ajouter les tests au pipeline → **reporté à l'Étape 10** (aucun test n'existe encore ; `quality` = typecheck + lint pour l'instant)
 
-**Résultat** : chaque push sur main déclenche lint + tests + déploiement automatique.
+**Résultat** : chaque push/PR déclenche typecheck + lint sur les deux dépôts ; un push sur `main` de `veille-analytics` déploie le Worker automatiquement (le dashboard, lui, via Workers Builds).
+
+> **Note Étape 9** — pièges rencontrés et corrigés :
+> - **Un workflow par repo, pas un `deploy.yml` unique** : ce sont deux dépôts Git distincts → deux `ci.yml`. Le plan initial (« lint → tests → deploy » dans un seul fichier) supposait un monorepo.
+> - **Pas de job deploy pour le dashboard** : il se déploie déjà via Workers Builds (intégration Git Cloudflare). Le dupliquer dans Actions créerait un double déploiement concurrent.
+> - **TypeScript 6 vs 7** : l'outillage Nuxt résout le peer `typescript` vers 7.0.2, que `typescript-eslint` 8.63 ne sait pas encore parser (`eslint` crashe : `reading 'Cjs'`). Corrigé par `pnpm.overrides` → `typescript: 6.0.3` dans le dashboard.
+> - **Token Cloudflare** : le job `deploy` a d'abord échoué (`code 9109 Invalid access token`). Le secret `CLOUDFLARE_API_TOKEN` doit contenir un **API Token** valide (modèle « Edit Cloudflare Workers », collé sans espace) — pas la *Global API Key* ; wrangler fait aussi des appels `/accounts` + *User settings* au démarrage, que ce modèle couvre.
 
 ### Étape 10 — Tests
 
