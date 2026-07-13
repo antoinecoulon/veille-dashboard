@@ -353,13 +353,27 @@ déployés).
 
 ### Étape 10 — Tests
 
-- [ ]  Installer Vitest
-- [ ]  Tests unitaires : fonctions de normalisation (tags, dates, dédoublonnage)
-- [ ]  Tests d'intégration : appeler les endpoints du Worker, vérifier les réponses
-- [ ]  Ajouter les tests au pipeline GitHub Actions
-- [ ]  Vérifier que le pipeline échoue si un test casse
+- [x]  Installer Vitest (+ `@cloudflare/vitest-pool-workers` pour une vraie D1 Miniflare)
+- [x]  Extraire la normalisation en fonctions pures (`src/lib/normalize.ts`) pour la tester
+- [x]  Tests unitaires : normalisation **tags** et **dates** + parse des lignes (`test/normalize.test.ts`)
+- [x]  Tests d'intégration : piloter `export default.fetch` sur D1 réelle — auth, validation,
+  ingest, lecture, **dédoublonnage**, stats themes/sources/timeline (`test/api.test.ts`)
+- [x]  Ajouter `pnpm test` au job `quality` du pipeline GitHub Actions
+- [x]  Vérifier que le pipeline échoue si un test casse (prouvé : assertion cassée → exit 1)
 
-**Résultat** : une base de tests qui tourne à chaque déploiement.
+> **Note Étape 10** — précisions vs plan initial :
+> - Le **dédoublonnage n'a aucune logique JS** : c'est `INSERT OR IGNORE` sur la contrainte
+>   `url TEXT NOT NULL UNIQUE`. Il se teste donc en **intégration D1** (insérer 2× la même url →
+>   1 ligne), pas en unitaire.
+> - Les endpoints stats utilisent des fonctions SQLite (`json_each`, `strftime`) → mock D1
+>   impraticable, d'où `@cloudflare/vitest-pool-workers` (Miniflare, vraie SQLite).
+> - Config en **`vitest.config.mts`** (le pool est ESM-only, le repo est CommonJS), D1 en
+>   **schéma seul** (migration `0001` filtrée) pour ne pas fausser les comptages.
+> - Amélioration CI au passage : **`paths-ignore`** (`**.md`, `docs/**`) → un changement de doc
+>   seul ne relance plus CI + deploy.
+
+**Résultat** : une base de tests (17) qui tourne à chaque push/PR ; le pipeline échoue si un
+test casse.
 
 ### Étape 11 — Terraform (IaC)
 
