@@ -8,6 +8,8 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "typecheck": "nuxt typecheck",
+    "lint": "eslint .",
     "postinstall": "nuxt prepare",
     "auth:generate": "npx @better-auth/cli generate --config scripts/auth-generate.ts --output migrations/0001_better_auth.sql -y",
     "db:migrate:local": "wrangler d1 migrations apply veille-auth --local",
@@ -26,11 +28,22 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260708.1",
     "@iconify-json/lucide": "^1.2.114",
+    "@nuxt/eslint": "^1.16.0",
     "@types/node": "^26.0.0",
+    "eslint": "^10.7.0",
     "nitro-cloudflare-dev": "^0.2.2",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.7",
     "wrangler": "^4.108.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@parcel/watcher", "esbuild", "workerd"]
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "esbuild",
+      "workerd"
+    ],
+    "overrides": {
+      "typescript": "6.0.3"
+    }
   }
 }

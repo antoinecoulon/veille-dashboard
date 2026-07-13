@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { AuthFormField } from '@nuxt/ui'
-import type { FormError, FormSubmitEvent } from '@nuxt/ui'
+import type { AuthFormField, FormError, FormSubmitEvent } from '@nuxt/ui'
 
 // Écran de connexion sans la sidebar du dashboard.
 definePageMeta({ layout: false })
