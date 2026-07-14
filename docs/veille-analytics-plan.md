@@ -311,10 +311,10 @@ déployés).
 
 ## BONUS
 
-- [ ] Trouver un moyen de démarrer automatiquement et régulièrement la collecte d'articles (Node-RED)
-- [ ] Ajouter un favicon
-- [ ] Vérifier la documentation
-- [ ] PWD fonctionnel
+- [ ] Trouver un moyen de démarrer automatiquement et régulièrement la collecte d'articles (Node-RED) — **décision : déclenchement manuel conservé** (une passe/jour lancée à la main ; le coût d'un ordonnancement fiable — inject `interval` + persistance pm2/service, contrainte par une machine allumée par intermittence en WSL — ne se justifie pas pour l'instant)
+- [x] Ajouter un favicon — favicon SVG propre au projet (tuile emerald + barres analytics)
+- [x] Vérifier la documentation — schéma d'archi analytics corrigé (Workers, pas Pages) + Phase 2 cochée ; vues stats du dashboard notées comme livrées
+- [x] PWA installable — `@vite-pwa/nuxt` (manifest + service worker), `<VitePwaManifest />` dans `app.vue` pour injecter le `<link rel="manifest">` en SSR ; icône = le favicon SVG
 
 ---
 
