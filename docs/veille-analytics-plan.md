@@ -377,13 +377,29 @@ test casse.
 
 ### Étape 11 — Terraform (IaC)
 
-- [ ]  Installer Terraform CLI
-- [ ]  Écrire la configuration : provider Cloudflare, ressources D1 (articles **+ D1 auth**), Worker, KV, **projet Pages** (dashboard) avec son binding D1
-- [ ]  Importer les ressources existantes (`terraform import`)
-- [ ]  Vérifier : `terraform plan` ne montre aucun changement (l'état correspond à ce qui existe)
-- [ ]  Documenter : un README qui explique comment recréer l'infra from scratch
+- [x]  Installer Terraform CLI
+- [x]  Écrire la configuration : provider Cloudflare v5, ressources **durables** — D1 articles (`veille-analytics`) **+ D1 auth** (`veille-auth`, dashboard) **+ KV** (`AUTH`). Le **code des Workers** est hors périmètre (géré par wrangler / Workers Builds — voir Note).
+- [x]  Importer les ressources existantes (`terraform import`) — aucune création
+- [x]  Vérifier : `terraform plan` ne montre aucun changement (l'état correspond à ce qui existe)
+- [x]  Documenter : un README qui explique comment recréer l'infra from scratch
 
-**Résultat** : toute l'infrastructure est décrite en code. `terraform apply` recrée tout.
+**Résultat** : l'infrastructure durable est décrite en code (`veille-analytics/terraform/`). `terraform apply` recrée les bases D1 et le KV.
+
+> **Note Étape 11** — Découpage IaC / CD assumé
+>
+> - **Périmètre = infra durable seulement** (2 D1 + 1 KV). Le *code* des Workers reste déployé
+>   par **wrangler / Cloudflare Workers Builds**, pas par Terraform. Gérer
+>   `cloudflare_workers_script` en IaC créerait un **drift permanent** : chaque `wrangler deploy`
+>   réécrit la ressource → deux propriétaires → `terraform plan` jamais propre. Pattern d'archi :
+>   **Terraform = infra durable, CI/CD = déploiement applicatif**, un seul propriétaire par ressource.
+> - Le point de départ mentionnait un « **projet Pages** » pour le dashboard : **obsolète** depuis
+>   le pivot Pages → Workers (Partie D). Le dashboard est un **Worker** → hors périmètre Terraform.
+> - **Import sans création** : les ressources existaient déjà ; on les rattache à l'état. Piège
+>   réconcilié pour un `plan` propre : les D1 exigent `read_replication = { mode = "disabled" }`
+>   explicite dans le HCL, sinon Terraform propose un faux diff.
+> - **État local** (`terraform.tfstate` gitignored), `account_id` via `terraform.tfvars` non
+>   versionné, auth du provider via `$CLOUDFLARE_API_TOKEN`, lock du provider committé. En équipe,
+>   on migrerait vers un backend distant (R2). Les **migrations D1 restent appliquées par wrangler**.
 
 ---
 
