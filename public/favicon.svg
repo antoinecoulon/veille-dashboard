@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Veille.dev">
+  <rect width="512" height="512" rx="112" fill="#10b981"/>
+  <g fill="#ffffff">
+    <rect x="140" y="252" width="64" height="120" rx="20"/>
+    <rect x="224" y="192" width="64" height="180" rx="20"/>
+    <rect x="308" y="132" width="64" height="240" rx="20"/>
+  </g>
+</svg>

@@ -30,6 +30,7 @@
     "@iconify-json/lucide": "^1.2.114",
     "@nuxt/eslint": "^1.16.0",
     "@types/node": "^26.0.0",
+    "@vite-pwa/nuxt": "^1.1.1",
     "eslint": "^10.7.0",
     "nitro-cloudflare-dev": "^0.2.2",
     "typescript": "^6.0.3",
