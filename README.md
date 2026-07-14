@@ -1,8 +1,8 @@
 # Veille.dev — Dashboard
 
 Dashboard de visualisation de la veille technologique. Il consomme l'API Worker Cloudflare
-(`veille-analytics`) et affiche les articles collectés, avec filtres, pagination et (à venir)
-des vues statistiques.
+(`veille-analytics`) et affiche les articles collectés, avec filtres et pagination, ainsi que
+des vues statistiques (tendances par thème, distribution par source/thème).
 
 ## Architecture
 
