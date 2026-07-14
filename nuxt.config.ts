@@ -13,12 +13,16 @@ export default defineNuxtConfig({
   nitro: { preset: 'cloudflare_module' },
   // nitro-cloudflare-dev émule les bindings Cloudflare (D1 DB_AUTH) dans `nuxt dev`
   // via getPlatformProxy → accessibles sur event.context.cloudflare.env côté serveur.
-  modules: ['@nuxt/ui', 'nitro-cloudflare-dev', '@nuxt/eslint'],
+  modules: ['@nuxt/ui', 'nitro-cloudflare-dev', '@nuxt/eslint', '@vite-pwa/nuxt'],
   css: ['~/assets/css/main.css'],
   app: {
     head: {
       htmlAttrs: { lang: 'fr' },
-      title: 'Veille.dev — Dashboard'
+      title: 'Veille.dev — Dashboard',
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
+      ]
     }
   },
   fonts: {
@@ -26,6 +30,33 @@ export default defineNuxtConfig({
       { name: 'Space Grotesk', provider: 'google' },
       { name: 'IBM Plex Mono', provider: 'google' }
     ]
+  },
+  // PWA : manifest + service worker (généré par vite-plugin-pwa). Rend le dashboard
+  // installable. Icône = le favicon SVG (pas de PNG, faute de rastériseur). L'app est
+  // rendue côté serveur (SSR Worker) : on NE précache PAS le HTML et on laisse les
+  // navigations passer au réseau (navigateFallback désactivé) pour ne pas court-circuiter
+  // le SSR / les gardes d'auth.
+  pwa: {
+    registerType: 'autoUpdate',
+    manifest: {
+      name: 'Veille.dev — Dashboard',
+      short_name: 'Veille.dev',
+      description: 'Dashboard de veille technologique et analytics',
+      lang: 'fr',
+      theme_color: '#10b981',
+      background_color: '#ffffff',
+      display: 'standalone',
+      start_url: '/',
+      icons: [
+        { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+        { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' }
+      ]
+    },
+    workbox: {
+      navigateFallback: null,
+      globPatterns: ['**/*.{js,css,svg,ico,woff2}']
+    },
+    devOptions: { enabled: false }
   },
   // Design clair (papier) — pas de bascule sombre pour l'instant
   colorMode: {
