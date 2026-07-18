@@ -13,9 +13,15 @@ const theme = ref(ALL)
 const source = ref(ALL)
 const categorie = ref(ALL)
 const scoreMin = ref(ALL)
+// Filtres Machine Learning (Étape 15). `?desaccord=1` (lien depuis la page
+// Comparaison ML) pré-active le filtre désaccord à l'arrivée sur la page.
+const themeMl = ref(ALL)
+const confianceMin = ref(ALL)
+const mlPresence = ref(ALL)
+const accordMl = ref(useRoute().query.desaccord === '1' ? 'desaccord' : ALL)
 
 // Repartir page 1 dès qu'un filtre OU la taille de page change
-watch([theme, source, categorie, scoreMin, limit], () => {
+watch([theme, source, categorie, scoreMin, themeMl, confianceMin, mlPresence, accordMl, limit], () => {
   page.value = 1
 })
 
@@ -26,6 +32,10 @@ const query = computed(() => {
   if (source.value !== ALL) q.source = source.value
   if (categorie.value !== ALL) q.categorie = categorie.value
   if (scoreMin.value !== ALL) q.score_min = scoreMin.value
+  if (themeMl.value !== ALL) q.theme_ml = themeMl.value
+  if (confianceMin.value !== ALL) q.score_ml_min = confianceMin.value
+  if (mlPresence.value !== ALL) q.ml = mlPresence.value
+  if (accordMl.value === 'desaccord') q.desaccord = '1'
   return q
 })
 
@@ -59,14 +69,38 @@ const scoreItems = [
 // Valeurs numériques : `limit` est un ref(number), pas besoin de sentinelle ici
 const pageSizeItems = [10, 25, 50].map(n => ({ label: `${n} / page`, value: n }))
 
+// Options des filtres ML
+const themeMlItems = computed(() => [
+  { label: 'Tous les thèmes ML', value: ALL },
+  ...KNOWN_THEMES.map(t => ({ label: t, value: t }))
+])
+const confianceItems = [
+  { label: 'Confiance ML min.', value: ALL },
+  ...['0.5', '0.7', '0.9'].map(v => ({ label: `≥ ${v.replace('.', ',')}`, value: v }))
+]
+const mlPresenceItems = [
+  { label: 'Classification ML', value: ALL },
+  { label: 'ML : présente', value: 'oui' },
+  { label: 'ML : absente', value: 'non' }
+]
+const accordItems = [
+  { label: 'Accord ML/Mistral', value: ALL },
+  { label: 'En désaccord (aucun thème commun)', value: 'desaccord' }
+]
+
 const hasFilters = computed(() =>
   theme.value !== ALL || source.value !== ALL || categorie.value !== ALL || scoreMin.value !== ALL
+  || themeMl.value !== ALL || confianceMin.value !== ALL || mlPresence.value !== ALL || accordMl.value !== ALL
 )
 function resetFilters() {
   theme.value = ALL
   source.value = ALL
   categorie.value = ALL
   scoreMin.value = ALL
+  themeMl.value = ALL
+  confianceMin.value = ALL
+  mlPresence.value = ALL
+  accordMl.value = ALL
 }
 
 // --- Helpers d'affichage ---
@@ -85,6 +119,12 @@ function scoreColor(score: number): 'success' | 'warning' | 'error' {
   if (score === 3) return 'warning'
   return 'error'
 }
+// Confiance ML (0-1) : vert dès le seuil de classification (0,7, cf. Étape 13)
+function confianceColor(score: number): 'success' | 'warning' | 'error' {
+  if (score >= 0.9) return 'success'
+  if (score >= 0.7) return 'warning'
+  return 'error'
+}
 
 // --- Colonnes (desktop) ---
 const columns: TableColumn<Article>[] = [
@@ -93,6 +133,8 @@ const columns: TableColumn<Article>[] = [
   { accessorKey: 'categorie_mistral', header: 'Catégorie' },
   { accessorKey: 'score_mistral', header: 'Score' },
   { accessorKey: 'themes_mistral', header: 'Thèmes' },
+  { accessorKey: 'themes_ml', header: 'Thèmes ML' },
+  { accessorKey: 'score_confiance_ml', header: 'Confiance' },
   { accessorKey: 'date_article', header: 'Date' }
 ]
 </script>
@@ -113,6 +155,10 @@ const columns: TableColumn<Article>[] = [
       <USelect v-model="source" :items="sourceItems" placeholder="Source" class="w-full" />
       <USelect v-model="categorie" :items="categorieItems" placeholder="Catégorie" class="w-full" />
       <USelect v-model="scoreMin" :items="scoreItems" placeholder="Score min." class="w-full" />
+      <USelect v-model="themeMl" :items="themeMlItems" placeholder="Thème ML" class="w-full" />
+      <USelect v-model="confianceMin" :items="confianceItems" placeholder="Confiance ML min." class="w-full" />
+      <USelect v-model="mlPresence" :items="mlPresenceItems" placeholder="Classification ML" class="w-full" />
+      <USelect v-model="accordMl" :items="accordItems" placeholder="Accord ML/Mistral" class="w-full" />
       <UButton
         v-if="hasFilters"
         label="Réinitialiser"
@@ -181,6 +227,29 @@ const columns: TableColumn<Article>[] = [
             />
           </div>
         </template>
+        <template #themes_ml-cell="{ row }">
+          <div v-if="row.original.themes_ml" class="flex flex-wrap gap-1 max-w-xs">
+            <UBadge
+              v-for="t in row.original.themes_ml"
+              :key="t"
+              color="primary"
+              variant="outline"
+              size="sm"
+              :label="t"
+            />
+            <span v-if="!row.original.themes_ml.length" class="text-xs text-muted">aucun ≥ seuil</span>
+          </div>
+          <span v-else class="text-muted">—</span>
+        </template>
+        <template #score_confiance_ml-cell="{ row }">
+          <UBadge
+            v-if="row.original.score_confiance_ml !== null"
+            :color="confianceColor(row.original.score_confiance_ml)"
+            variant="subtle"
+            :label="row.original.score_confiance_ml.toFixed(2)"
+          />
+          <span v-else class="text-muted">—</span>
+        </template>
         <template #date_article-cell="{ row }">
           <span class="text-muted whitespace-nowrap">{{ formatDate(row.original.date_article) }}</span>
         </template>
@@ -210,6 +279,25 @@ const columns: TableColumn<Article>[] = [
               variant="outline"
               size="sm"
               :label="t"
+            />
+          </div>
+          <div v-if="article.themes_ml" class="flex flex-wrap items-center gap-1">
+            <span class="text-xs text-muted font-mono">ML</span>
+            <UBadge
+              v-for="t in article.themes_ml"
+              :key="t"
+              color="primary"
+              variant="outline"
+              size="sm"
+              :label="t"
+            />
+            <span v-if="!article.themes_ml.length" class="text-xs text-muted">aucun ≥ seuil</span>
+            <UBadge
+              v-if="article.score_confiance_ml !== null"
+              :color="confianceColor(article.score_confiance_ml)"
+              variant="subtle"
+              size="sm"
+              :label="article.score_confiance_ml.toFixed(2)"
             />
           </div>
           <div class="flex items-center justify-between text-xs text-muted pt-1">

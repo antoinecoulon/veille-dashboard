@@ -8,7 +8,8 @@ const items: NavigationMenuItem[][] = [
   [
     { label: 'STATISTIQUES', type: 'label' },
     { label: 'Distribution', icon: 'i-lucide-chart-pie', to: '/distribution' },
-    { label: 'Tendances', icon: 'i-lucide-trending-up', to: '/tendances' }
+    { label: 'Tendances', icon: 'i-lucide-trending-up', to: '/tendances' },
+    { label: 'Comparaison ML', icon: 'i-lucide-git-compare', to: '/comparaison-ml' }
   ]
 ]
 
