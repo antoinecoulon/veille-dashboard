@@ -10,6 +10,11 @@ const items: NavigationMenuItem[][] = [
     { label: 'Distribution', icon: 'i-lucide-chart-pie', to: '/distribution' },
     { label: 'Tendances', icon: 'i-lucide-trending-up', to: '/tendances' },
     { label: 'Comparaison ML', icon: 'i-lucide-git-compare', to: '/comparaison-ml' }
+  ],
+  [
+    // La santé du pipeline n'est pas une statistique de veille : c'est de l'exploitation.
+    { label: 'EXPLOITATION', type: 'label' },
+    { label: 'Santé', icon: 'i-lucide-activity', to: '/sante' }
   ]
 ]
 
