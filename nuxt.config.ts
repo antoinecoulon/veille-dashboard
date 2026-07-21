@@ -145,6 +145,10 @@ export default defineNuxtConfig({
     // server-only : non exposé au client. Override au runtime par NUXT_WORKER_BASE_URL
     // (convention Nuxt : NUXT_ + clé camelCase). Lu par proxyToWorker.
     workerBaseUrl: '',
+    // Jeton de lecture du Worker analytics (C18), server-only comme le reste.
+    // En production il vient du secret NUXT_WORKER_READ_TOKEN pose sur le Worker ;
+    // ici, le repli pour `nuxt dev` (.env). Jamais dans runtimeConfig.public.
+    workerReadToken: '',
     // Secrets Better Auth (server-only). Alimentés par NUXT_BETTER_AUTH_SECRET / _URL (.env).
     betterAuthSecret: '',
     betterAuthUrl: ''
