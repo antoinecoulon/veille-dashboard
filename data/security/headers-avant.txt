@@ -1,0 +1,30 @@
+# En-tetes de reponse en production AVANT correction (C18) — releve du 2026-07-21.
+# Commande : curl -sS -D - -o /dev/null <url>   (GET reel ; curl -I enverrait un HEAD,
+# que le Worker analytics ne route pas et qui repondrait donc la route de repli).
+
+## GET https://veille-dashboard.<compte>.workers.dev/
+HTTP/1.1 200 OK
+Date: Tue, 21 Jul 2026 09:15:05 GMT
+Content-Type: text/html;charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Set-Cookie: dashboard-sidebar-v-0-0=%7B%22size%22%3A15%2C%22collapsed%22%3Afalse%7D; Path=/
+x-powered-by: Nuxt
+Report-To: [tronque]
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+Server: cloudflare
+CF-RAY: a1e919597e29f1ac-CDG
+alt-svc: h3=":443"; ma=86400
+
+## GET https://veille-analytics.<compte>.workers.dev/api/stats/health
+HTTP/1.1 200 OK
+Date: Tue, 21 Jul 2026 09:15:05 GMT
+Content-Type: application/json
+Content-Length: 225
+Connection: keep-alive
+Report-To: [tronque]
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+Server: cloudflare
+CF-RAY: a1e9195e0983697a-CDG
+alt-svc: h3=":443"; ma=86400
+

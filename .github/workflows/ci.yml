@@ -23,3 +23,38 @@ jobs:
       - run: pnpm typecheck
 
       - run: pnpm lint
+
+  # Analyse de sécurité (C18). Voir le même job dans veille-analytics : `pnpm audit`
+  # couvre les dépendances installées, gitleaks le code et son historique. Aucun des
+  # deux ne juge la logique applicative.
+  #
+  # Le scan dynamique (OWASP ZAP) vit dans un workflow séparé, security-scan.yml : sa
+  # cible est l'application DÉPLOYÉE, pas le code de la branche, donc il n'a rien à
+  # faire dans un pipeline déclenché par une pull request.
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 — gitleaks analyse tout l'historique. Un secret retiré dans un
+      # commit ultérieur reste exposé dans les objets git.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Au 2026-07-21, l'audit initial remontait 8 avis dont un CRITIQUE (tar, chaîne de
+      # build de nitropack). Tous relevaient de dépendances transitives de construction ;
+      # aucune n'est servie au navigateur. Ils ont été résolus par des `pnpm.overrides`
+      # versionnés dans package.json plutôt qu'ignorés — cf. ADR D14.
+      - run: pnpm audit --audit-level=high
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

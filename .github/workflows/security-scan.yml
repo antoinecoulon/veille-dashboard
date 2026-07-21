@@ -1,0 +1,44 @@
+name: Security scan (ZAP)
+
+# Analyse dynamique (DAST) du dashboard DÉPLOYÉ, avec OWASP ZAP en mode « baseline ».
+#
+# Baseline = exploration (spider) puis analyse PASSIVE : ZAP observe les réponses et
+# signale ce qu'elles révèlent (en-têtes manquants, attributs de cookie, divulgation
+# d'information). Il n'envoie AUCUNE charge offensive — pas d'injection, pas de force
+# brute. C'est ce qui le rend acceptable contre une production, y compris la sienne.
+#
+# Ce qu'il ne fera pas, et qu'il faut savoir avant de lire son rapport : il ne juge pas
+# une autorisation. Un endpoint qui répond 200 à tout le monde lui paraît sain. Le
+# dashboard exigeant une session, ZAP ne voit d'ailleurs que la page de connexion et les
+# assets publics. Les constats d'autorisation viennent de la revue de surface, pas d'ici.
+#
+# Déclenchement manuel + hebdomadaire, jamais sur push ni pull_request : la cible est la
+# production, pas le code de la branche. Scanner la production à chaque commit
+# mesurerait l'état d'une application qui n'a pas encore reçu ce commit.
+on:
+  workflow_dispatch:
+  schedule:
+    # Lundi 06:00 UTC — la veille tourne le week-end, le rapport arrive avant la semaine.
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  zap-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: https://veille-dashboard.a-antoinecoulon.workers.dev
+          # Les règles explicitement acceptées, avec leur motif, une par ligne.
+          rules_file_name: .zap/rules.tsv
+          # Pas de création d'issue GitHub : le rapport est un artefact de run, lu quand
+          # on l'ouvre. Une issue rouverte chaque semaine deviendrait du bruit ignoré.
+          allow_issue_writing: false
+          # -a : inclut les alertes marquées « expérimentales ». On préfère trier des
+          # faux positifs que passer à côté — même arbitrage que la whitelist de thèmes.
+          cmd_options: '-a'
