@@ -44,7 +44,12 @@
       "workerd"
     ],
     "overrides": {
-      "typescript": "6.0.3"
+      "typescript": "6.0.3",
+      "esbuild@>=0.27.3 <0.28.1": ">=0.28.1",
+      "brace-expansion@>=2.0.0 <2.1.2": ">=2.1.2",
+      "minimatch>brace-expansion": "5.0.7",
+      "tar@<=7.5.18": ">=7.5.19",
+      "shell-quote@<=1.8.4": ">=1.9.0"
     }
   }
 }

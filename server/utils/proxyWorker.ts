@@ -12,11 +12,24 @@ export async function proxyToWorker(event: H3Event) {
   // pas propagées de façon fiable vers runtimeConfig au runtime. On lit donc l'env CF en priorité
   // (comme auth.ts pour DB_AUTH), avec runtimeConfig en repli pour le dev (.env via process.env).
   const env = event.context.cloudflare?.env as
-    | { NUXT_WORKER_BASE_URL?: string; ANALYTICS?: { fetch: typeof fetch } }
+    | { NUXT_WORKER_BASE_URL?: string; NUXT_WORKER_READ_TOKEN?: string; ANALYTICS?: { fetch: typeof fetch } }
     | undefined
   const base = env?.NUXT_WORKER_BASE_URL || useRuntimeConfig(event).workerBaseUrl
   if (!base) {
     throw createError({ statusCode: 500, statusMessage: 'URL du Worker indisponible' })
+  }
+
+  // Jeton de lecture (C18). Les routes de lecture du Worker ne répondaient à aucune
+  // condition : l'URL du Worker étant publique et versionnée, la session verifiée
+  // ci-dessus ne protégeait que le chemin qui passe par ici. Le Worker exige désormais
+  // cet en-tête ; ce proxy est le seul à l'émettre.
+  //
+  // Absent = on échoue ici, plutôt que de laisser partir une requête qui reviendra en
+  // 401 et se lira comme une session expirée. Une erreur de configuration doit
+  // ressembler à une erreur de configuration.
+  const token = env?.NUXT_WORKER_READ_TOKEN || useRuntimeConfig(event).workerReadToken
+  if (!token) {
+    throw createError({ statusCode: 500, statusMessage: 'Jeton de lecture du Worker indisponible' })
   }
 
   // En prod, on route via le service binding (fetch interne Worker→Worker) : deux Workers
@@ -24,5 +37,8 @@ export async function proxyToWorker(event: H3Event) {
   // binding ignore le hostname et route sur le chemin. En dev (Node), pas de binding → fetch
   // public classique vers l'URL du Worker (qui, lui, fonctionne hors contexte Worker).
   const fetcher = import.meta.dev ? undefined : env?.ANALYTICS
-  return proxyRequest(event, base + event.path, fetcher ? { fetch: fetcher.fetch.bind(fetcher) } : undefined)
+  return proxyRequest(event, base + event.path, {
+    headers: { 'X-Dashboard-Token': token },
+    ...(fetcher ? { fetch: fetcher.fetch.bind(fetcher) } : {})
+  })
 }
