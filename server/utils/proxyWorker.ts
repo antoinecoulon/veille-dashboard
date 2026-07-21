@@ -27,7 +27,14 @@ export async function proxyToWorker(event: H3Event) {
   // Absent = on échoue ici, plutôt que de laisser partir une requête qui reviendra en
   // 401 et se lira comme une session expirée. Une erreur de configuration doit
   // ressembler à une erreur de configuration.
-  const token = env?.NUXT_WORKER_READ_TOKEN || useRuntimeConfig(event).workerReadToken
+  //
+  // `trim()` n'est pas de la coquetterie : poser ce secret en pipant une valeur dans
+  // `wrangler secret put` y ajoute un saut de ligne, et le symptôme est trompeur — le
+  // Worker répond 401, ce qui se lit comme une session expirée alors que la session est
+  // valide et que seul l'octet de fin diffère. Un espace de bordure ne peut jamais faire
+  // partie d'un jeton légitime ; le couper ici est sans risque et évite de rejouer le
+  // diagnostic. Le secret a par ailleurs été réécrit proprement.
+  const token = (env?.NUXT_WORKER_READ_TOKEN || useRuntimeConfig(event).workerReadToken)?.trim()
   if (!token) {
     throw createError({ statusCode: 500, statusMessage: 'Jeton de lecture du Worker indisponible' })
   }
