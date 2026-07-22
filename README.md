@@ -1,6 +1,7 @@
 # Veille.dev — Dashboard
 
 [![CI](https://github.com/antoinecoulon/veille-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/antoinecoulon/veille-dashboard/actions/workflows/ci.yml)
+[![Security scan (ZAP)](https://github.com/antoinecoulon/veille-dashboard/actions/workflows/security-scan.yml/badge.svg)](https://github.com/antoinecoulon/veille-dashboard/actions/workflows/security-scan.yml)
 
 Dashboard de visualisation de la veille technologique. Il consomme l'API Worker Cloudflare
 (`veille-analytics`) et affiche les articles collectés, avec filtres et pagination, ainsi que
