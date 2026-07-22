@@ -58,3 +58,25 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Analyse de qualité de code (C19). SonarCloud : bugs, code smells, duplication et
+  # quality gate persistante, sur le front Nuxt (app/) et le serveur Nitro (server/).
+  # Job séparé, non bloquant (aucun `deploy` ici — Cloudflare Workers Builds déploie sur
+  # push). Même config que veille-analytics ; choix tracé en ADR D17 (dépôt analytics).
+  #
+  # Prérequis : compte SonarCloud lié au dépôt + secret `SONAR_TOKEN`. Tant qu'il est
+  # absent, le job échoue — voulu : il n'a de sens qu'une fois SonarCloud connecté.
+  sonar:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 — SonarCloud date le « new code » à partir de l'historique complet.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Version à confirmer aux docs SonarCloud (l'ancienne sonarcloud-github-action est
+      # dépréciée au profit de sonarqube-scan-action).
+      - uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
