@@ -74,9 +74,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Version à confirmer aux docs SonarCloud (l'ancienne sonarcloud-github-action est
-      # dépréciée au profit de sonarqube-scan-action).
-      - uses: SonarSource/sonarqube-scan-action@v5
+      # Épinglée au SHA complet plutôt qu'au tag mobile `v5` : un tag peut être redéplacé,
+      # un SHA est immuable — durcissement de la chaîne d'appro CI.
+      - uses: SonarSource/sonarqube-scan-action@2f77a1ec69fb1d595b06f35ab27e97605bdef703 # v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
