@@ -40,7 +40,12 @@ type StatutSante = 'ok' | 'degrade' | 'alerte'
 interface PipelineHealth {
   statut: StatutSante // le pire des deux sous-statuts
   collecte: {
-    derniere_ingestion: string | null // MAX(date_collecte), null si base vide
+    // `dernier_article_collecte` et non `derniere_ingestion` : la mesure est un
+    // MAX(date_collecte), donc la date du dernier article INSÉRÉ, pas celle de la dernière
+    // passe de collecte — une passe qui ne ramène que des doublons n'écrit rien. Le champ a
+    // été renommé côté Worker par l'ADR D12 précisément parce que l'ancien nom affirmait ce
+    // que la mesure ne prouve pas. Ce type ne l'avait pas suivi (ADR D18).
+    dernier_article_collecte: string | null // null si base vide
     jours_depuis: number | null
     statut: StatutSante // ok <= 3 j, degrade 4-14 j, alerte > 14 j
   }

@@ -30,7 +30,7 @@ function formatDate(iso: string | null): string {
 
 const fraicheur = computed(() => {
   const j = sante.value?.collecte.jours_depuis
-  if (j === null || j === undefined) return 'Aucune ingestion'
+  if (j === null || j === undefined) return 'Aucun article collecté'
   if (j === 0) return "Aujourd'hui"
   return j === 1 ? 'Il y a 1 jour' : `Il y a ${j} jours`
 })
@@ -117,9 +117,9 @@ const compteurs = computed(() => {
           <USkeleton v-if="isPending" class="h-24 w-full" />
           <template v-else-if="sante">
             <div class="space-y-1">
-              <p class="text-xs uppercase tracking-wide text-muted">Dernière ingestion</p>
+              <p class="text-xs uppercase tracking-wide text-muted">Dernier article collecté</p>
               <p class="font-mono text-3xl font-bold">{{ fraicheur }}</p>
-              <p class="text-xs text-muted">{{ formatDate(sante.collecte.derniere_ingestion) }}</p>
+              <p class="text-xs text-muted">{{ formatDate(sante.collecte.dernier_article_collecte) }}</p>
             </div>
             <p class="text-xs text-muted">
               Seuils : nominal jusqu'à 3 jours, dégradé de 4 à 14, alerte au-delà. Calibrés sur le

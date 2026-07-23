@@ -194,9 +194,14 @@ const columns: TableColumn<Article>[] = [
         class="hidden lg:block w-full bg-default rounded-xl border border-default overflow-hidden"
       >
         <template #titre-cell="{ row }">
+          <!-- `rel` posé explicitement, alors que NuxtLink l'ajoute déjà pour une cible
+               externe : la protection ne doit pas dépendre d'un défaut de bibliothèque qu'une
+               montée de version peut changer, et une affirmation de sécurité (ADR D14) doit
+               être vérifiable dans le source, pas seulement dans le DOM rendu. -->
           <ULink
             :to="row.original.url"
             target="_blank"
+            rel="noopener noreferrer"
             class="font-medium line-clamp-2 max-w-md hover:text-primary"
           >
             {{ row.original.titre }}
@@ -261,7 +266,7 @@ const columns: TableColumn<Article>[] = [
           <USkeleton v-for="n in 5" :key="n" class="h-40 w-full" />
         </template>
         <UCard v-for="article in articles" :key="article.id" :ui="{ body: 'space-y-3' }">
-          <ULink :to="article.url" target="_blank" class="font-semibold leading-snug hover:text-primary block">
+          <ULink :to="article.url" target="_blank" rel="noopener noreferrer" class="font-semibold leading-snug hover:text-primary block">
             {{ article.titre }}
           </ULink>
           <p class="text-sm text-muted line-clamp-3">{{ article.resume }}</p>
