@@ -24,6 +24,13 @@ jobs:
 
       - run: pnpm lint
 
+      # Tests du BFF et du contrat inter-dépôts. `pnpm test` enchaîne un contrôle de types sur
+      # tsconfig.test.json puis vitest : `nuxt typecheck` ci-dessus ne regarde pas `test/`, et
+      # la liaison de type qui garde le contrat /api/stats/health ne serait pas compilée sans
+      # cette passe. Cf. ADR D18 — le défaut qui a motivé cette suite était invisible pour
+      # typecheck et lint réunis.
+      - run: pnpm test
+
   # Analyse de sécurité (C18). Voir le même job dans veille-analytics : `pnpm audit`
   # couvre les dépendances installées, gitleaks le code et son historique. Aucun des
   # deux ne juge la logique applicative.

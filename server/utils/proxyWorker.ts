@@ -1,42 +1,30 @@
 import type { H3Event } from 'h3'
+import { ErreurRelais, preparerRelais, type EnvRelais } from './relais'
 
 // Vérifie la session puis relaie la requête au Worker analytics (same-origin → Worker).
 // C'est LA protection des données : sans session, on renvoie 401 avant tout appel au Worker.
+//
+// Ce fichier ne fait plus que des entrées-sorties. Les décisions — refuser, résoudre la cible,
+// résoudre le jeton — vivent dans `preparerRelais` (server/utils/relais.ts), qui n'a aucune
+// dépendance au runtime et porte les tests. Le découpage n'est pas cosmétique : il rend
+// vérifiable l'affirmation de l'ADR D15 selon laquelle rien ne part vers le Worker sans
+// session, en la rendant structurelle plutôt que dépendante de l'ordre des lignes ci-dessous.
 export async function proxyToWorker(event: H3Event) {
   const session = await serverAuth(event).api.getSession({ headers: event.headers })
-  if (!session) {
-    throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-  }
 
-  // Sur Cloudflare, les variables du Worker vivent sur event.context.cloudflare.env et ne sont
-  // pas propagées de façon fiable vers runtimeConfig au runtime. On lit donc l'env CF en priorité
-  // (comme auth.ts pour DB_AUTH), avec runtimeConfig en repli pour le dev (.env via process.env).
   const env = event.context.cloudflare?.env as
-    | { NUXT_WORKER_BASE_URL?: string; NUXT_WORKER_READ_TOKEN?: string; ANALYTICS?: { fetch: typeof fetch } }
+    | (EnvRelais & { ANALYTICS?: { fetch: typeof fetch } })
     | undefined
-  const base = env?.NUXT_WORKER_BASE_URL || useRuntimeConfig(event).workerBaseUrl
-  if (!base) {
-    throw createError({ statusCode: 500, statusMessage: 'URL du Worker indisponible' })
-  }
 
-  // Jeton de lecture (C18). Les routes de lecture du Worker ne répondaient à aucune
-  // condition : l'URL du Worker étant publique et versionnée, la session verifiée
-  // ci-dessus ne protégeait que le chemin qui passe par ici. Le Worker exige désormais
-  // cet en-tête ; ce proxy est le seul à l'émettre.
-  //
-  // Absent = on échoue ici, plutôt que de laisser partir une requête qui reviendra en
-  // 401 et se lira comme une session expirée. Une erreur de configuration doit
-  // ressembler à une erreur de configuration.
-  //
-  // `trim()` n'est pas de la coquetterie : poser ce secret en pipant une valeur dans
-  // `wrangler secret put` y ajoute un saut de ligne, et le symptôme est trompeur — le
-  // Worker répond 401, ce qui se lit comme une session expirée alors que la session est
-  // valide et que seul l'octet de fin diffère. Un espace de bordure ne peut jamais faire
-  // partie d'un jeton légitime ; le couper ici est sans risque et évite de rejouer le
-  // diagnostic. Le secret a par ailleurs été réécrit proprement.
-  const token = (env?.NUXT_WORKER_READ_TOKEN || useRuntimeConfig(event).workerReadToken)?.trim()
-  if (!token) {
-    throw createError({ statusCode: 500, statusMessage: 'Jeton de lecture du Worker indisponible' })
+  let base: string
+  let token: string
+  try {
+    ({ base, token } = preparerRelais(session, env, useRuntimeConfig(event)))
+  } catch (err) {
+    if (err instanceof ErreurRelais) {
+      throw createError({ statusCode: err.statusCode, statusMessage: err.statusMessage })
+    }
+    throw err
   }
 
   // En prod, on route via le service binding (fetch interne Worker→Worker) : deux Workers
@@ -45,6 +33,7 @@ export async function proxyToWorker(event: H3Event) {
   // public classique vers l'URL du Worker (qui, lui, fonctionne hors contexte Worker).
   const fetcher = import.meta.dev ? undefined : env?.ANALYTICS
   return proxyRequest(event, base + event.path, {
+    // Le Worker exige cet en-tête sur ses routes de lecture ; ce proxy est le seul à l'émettre.
     headers: { 'X-Dashboard-Token': token },
     ...(fetcher ? { fetch: fetcher.fetch.bind(fetcher) } : {})
   })

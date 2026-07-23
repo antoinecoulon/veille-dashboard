@@ -100,12 +100,29 @@ isolates Cloudflare, un compteur en mémoire est contournable.
 
 ## Qualité et sécurité
 
-Ce dépôt ne porte pas de tests unitaires — la logique métier vit dans le Worker amont, qui en a
-120. Il porte en revanche deux workflows :
+L'essentiel de la logique métier vit dans le Worker amont, qui porte 120 tests d'intégration sur
+vraie D1 émulée. Ce dépôt en porte 13, ciblés sur ce que le Worker ne peut pas couvrir : le cœur
+décisionnel du BFF et le contrat qui les relie.
+
+| Suite | Ce qu'elle vérifie |
+|---|---|
+| [`test/relais.test.ts`](test/relais.test.ts) | `preparerRelais` : 401 sans session **jugé avant toute résolution de cible**, 500 explicite sur configuration incomplète, priorité de l'env Cloudflare sur `runtimeConfig`, `trim()` du jeton |
+| [`test/contrat-health.test.ts`](test/contrat-health.test.ts) | contrat `GET /api/stats/health` entre les deux dépôts — le filet posé après la dérive consignée en ADR D18 |
+
+Ces tests sont arrivés après coup, et pour une raison qui mérite d'être dite : `typecheck` et
+`lint` réunis n'ont pas vu qu'un champ renommé côté Worker (`derniere_ingestion` →
+`dernier_article_collecte`, ADR D12) n'avait pas été suivi ici. Le type était une déclaration à la
+main sur du JSON non validé, donc les deux outils validaient une fiction cohérente avec elle-même.
+La page Santé affichait un tiret à la place d'un horodatage, en répondant 200.
+
+Ce qui reste **hors couverture automatisée**, volontairement : le rendu des pages, les routes
+Nitro assemblées et la session Better Auth réelle. Monter le runtime Nuxt en test exigerait un
+build complet à chaque exécution ; ces trois-là restent couverts par le scan ZAP et le relevé
+manuel ci-dessous.
 
 | Workflow | Jobs |
 |---|---|
-| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | `quality` (typecheck + lint), `security` (`pnpm audit --audit-level=high` + gitleaks), `sonar` (SonarCloud, cf. `sonar-project.properties`) |
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | `quality` (typecheck + lint + test), `security` (`pnpm audit --audit-level=high` + gitleaks), `sonar` (SonarCloud, cf. `sonar-project.properties`) |
 | [`.github/workflows/security-scan.yml`](.github/workflows/security-scan.yml) | scan dynamique OWASP ZAP sur le dashboard déployé |
 
 L'action Sonar est **épinglée par SHA** et non par tag : un tag est mutable, et une action de CI
@@ -114,7 +131,12 @@ lit le dépôt avec les droits du workflow.
 ```bash
 pnpm typecheck
 pnpm lint
+pnpm test     # tsc sur tsconfig.test.json, puis vitest — 13 tests / 2 fichiers
 ```
+
+`pnpm test` enchaîne deux passes parce que `nuxt typecheck` n'inclut pas `test/` : sans le
+contrôle de types sur `tsconfig.test.json`, la liaison qui garde le contrat ne serait jamais
+compilée, donc inerte.
 
 Les relevés d'audit de dépendances avant/après et les en-têtes de réponse mesurés sont versionnés
 dans [`data/security/`](data/security/).
