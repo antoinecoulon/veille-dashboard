@@ -16,7 +16,11 @@ import type { PipelineHealth } from '../shared/types/stats'
 // est ce test.
 //
 // TRIANGULATION — trois affirmations indépendantes, qui ne peuvent pas dériver ensemble :
-//   1. la fixture est une réponse RÉELLE du Worker (à recapturer si le Worker change) ;
+//   1. la fixture est une réponse RÉELLE du Worker, laissée telle quelle (aucun champ de
+//      commentaire ajouté, sans quoi ce ne serait plus une capture). Relevée en production le
+//      2026-07-23 par `curl -s https://<worker>/api/stats/health`. À RECAPTURER par la même
+//      commande dès que le contrat du Worker bouge — voir la limite énoncée en ADR D18 : ce
+//      test protège de la dérive entre les deux dépôts, pas d'une capture périmée ;
 //   2. CHEMINS_ATTENDUS transcrit le contrat côté producteur (veille-analytics/src/lib/health.ts,
 //      interface PipelineHealth, et docs/003-api.md §7) ;
 //   3. `satisfies` lie la fixture au type consommé par les pages, contrôlé par `pnpm typecheck`.

@@ -2,14 +2,14 @@
   "data": {
     "statut": "ok",
     "collecte": {
-      "dernier_article_collecte": "2026-07-21T09:12:04.512Z",
-      "jours_depuis": 0,
+      "dernier_article_collecte": "2026-07-20T20:56:57.016Z",
+      "jours_depuis": 2,
       "statut": "ok"
     },
     "classification": {
       "total": 542,
       "ml_en_retard": 0,
-      "ml_sans_theme": 72,
+      "ml_sans_theme": 74,
       "mistral_manquants": 2,
       "statut": "ok"
     }
