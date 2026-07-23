@@ -16,9 +16,25 @@ des vues statistiques (tendances par thème, distribution par source/thème).
   [`server/utils/proxyWorker.ts`](server/utils/proxyWorker.ts)) qui **vérifient d'abord la
   session** (401 sinon). Conséquence : pas de CORS à gérer, l'URL du Worker reste côté serveur,
   et la donnée est protégée (pas seulement l'UI).
+- **Service binding `ANALYTICS`** : en production, le proxy n'appelle **pas** le Worker par son
+  URL publique. Deux Workers d'un même compte Cloudflare ne peuvent pas s'appeler par leur URL
+  `*.workers.dev` (erreur 1042) ; le binding, déclaré dans [`wrangler.toml`](wrangler.toml),
+  ignore le hostname et route sur le chemin. En dev (Node), pas de binding → `fetch` public
+  classique.
 - **Composable** [`useVeilleApi`](app/composables/useVeilleApi.ts) (`baseURL: '/api'`) — une
   query réactive déclenche le refetch au changement de filtre/page.
 - **Types partagés** dans [`shared/types/`](shared/types/).
+
+Le contrat de l'API consommée est documenté dans le dépôt amont :
+[`veille-analytics/docs/003-api.md`](https://github.com/antoinecoulon/veille-analytics/blob/main/docs/003-api.md).
+
+### Pages
+
+`index` (articles), `distribution`, `tendances`, `comparaison-ml`, `sante`, plus `login`. Le
+middleware global [`app/middleware/auth.global.ts`](app/middleware/auth.global.ts) redirige vers
+`/login` toute page sans session — mais **côté client uniquement** (il rend la main sur le serveur)
+et il ne protège que l'**UI**. La protection de la **donnée** est ailleurs, dans le proxy serveur,
+et c'est elle qui compte.
 
 ## Design system
 
@@ -45,12 +61,21 @@ pnpm dev        # http://localhost:3000
 | Variable | Rôle |
 | --- | --- |
 | `NUXT_WORKER_BASE_URL` | URL de base du Worker analytics. Override **au runtime** de `runtimeConfig.workerBaseUrl`, lue par le proxy. |
+| `NUXT_WORKER_READ_TOKEN` | Jeton de lecture du Worker (`READ_TOKEN` côté KV `AUTH`). Émis par le seul proxy, en en-tête `X-Dashboard-Token`. **Absent = 500** : une erreur de configuration doit ressembler à une erreur de configuration, pas à une session expirée. |
 | `NUXT_BETTER_AUTH_SECRET` | Secret de signature des sessions Better Auth (`openssl rand -base64 32`). |
 | `NUXT_BETTER_AUTH_URL` | Origine de l'app (`http://localhost:3000` en dev, l'URL de prod ensuite). Sert au CSRF et aux cookies. |
 
 > Aucune de ces variables n'est exposée au client : elles vivent dans `runtimeConfig`
-> (server-only). La convention `NUXT_` + clé camelCase permet leur override au runtime.
-> À définir en local (`.env`) **et** sur le Worker de prod (Cloudflare → Settings → Variables).
+> (server-only), il n'y a **aucun `runtimeConfig.public`**. La convention `NUXT_` + clé camelCase
+> permet leur override au runtime. À définir en local (`.env`) **et** sur le Worker de prod
+> (Cloudflare → Settings → Variables).
+
+> ⚠️ **Deux pièges déjà rencontrés, tous deux diagnostiqués à tort comme « session expirée ».**
+> Poser un secret en pipant une valeur dans `wrangler secret put` y ajoute un **saut de ligne** ;
+> le Worker répond alors 401 alors que la session est valide et que seul l'octet de fin diffère —
+> d'où le `.trim()` défensif de [`server/utils/proxyWorker.ts`](server/utils/proxyWorker.ts). Et
+> `wrangler deploy` **efface les variables plaintext** posées à la main dans l'interface : les
+> reposer fait partie du déploiement, ou les passer en secrets.
 
 ## Build / déploiement
 
@@ -68,5 +93,28 @@ pnpm preview    # prévisualisation locale
 - Poser les 3 variables server-only (ci-dessus) sur le Worker en prod.
 - Migrations d'auth distantes : `pnpm db:migrate:remote`.
 
-L'authentification (Better Auth, cœur, sur une D1 dédiée) est décrite dans
-[docs/veille-analytics-plan.md](docs/veille-analytics-plan.md) (Partie C).
+L'authentification (Better Auth, cœur, sur une D1 dédiée) est décrite dans le
+[plan d'action du projet](https://github.com/antoinecoulon/preparation-titre-eadl/blob/main/veille-analytics-side-project/veille-analytics-plan.md)
+(Partie C). Le rate limiting est configuré en `storage: 'database'` et non en mémoire : sur des
+isolates Cloudflare, un compteur en mémoire est contournable.
+
+## Qualité et sécurité
+
+Ce dépôt ne porte pas de tests unitaires — la logique métier vit dans le Worker amont, qui en a
+120. Il porte en revanche deux workflows :
+
+| Workflow | Jobs |
+|---|---|
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | `quality` (typecheck + lint), `security` (`pnpm audit --audit-level=high` + gitleaks), `sonar` (SonarCloud, cf. `sonar-project.properties`) |
+| [`.github/workflows/security-scan.yml`](.github/workflows/security-scan.yml) | scan dynamique OWASP ZAP sur le dashboard déployé |
+
+L'action Sonar est **épinglée par SHA** et non par tag : un tag est mutable, et une action de CI
+lit le dépôt avec les droits du workflow.
+
+```bash
+pnpm typecheck
+pnpm lint
+```
+
+Les relevés d'audit de dépendances avant/après et les en-têtes de réponse mesurés sont versionnés
+dans [`data/security/`](data/security/).
